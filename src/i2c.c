@@ -484,8 +484,17 @@ typedef struct _type_acc_io_stats
 	uint32_t nsamples;
 }type_acc_io_stats;
 
+typedef enum
+{
+	enum_acc_io_status_init = 0,
+	enum_acc_io_status_latch,
+	enum_acc_io_status_read,
+	enum_acc_io_status_numof,
+}enum_acc_io_status;
+
 typedef struct _type_acc_io
 {
+	enum_acc_io_status status;
 	uint16_t Xacc;
 	uint16_t Yacc;
 	int16_t Xacc_unbiased;
@@ -535,68 +544,91 @@ static type_acc_io acc_io;
 
 void test_i2c(void)
 {
-	i2c_app_init(I2C0, SPEED_100KHZ);
 
 	memset(&acc_io, 0, sizeof(acc_io));
 	init_stats(&acc_io.statsX);
 	init_stats(&acc_io.statsY);
 
-	acc_io.xfer.txBuff = &acc_io.txBuff[0];
-	acc_io.xfer.rxBuff = &acc_io.rxBuff[0];
-	acc_io.xfer.slaveAddr = 0x10;
-	acc_io.xfer.rxSz = 0;
-	acc_io.xfer.txSz = 0;
 
 
 	while(1)
 	{
+		switch(acc_io.status)
+		{
+			case enum_acc_io_status_init:
+			default:
+			{
+				i2c_app_init(I2C0, SPEED_100KHZ);
+				acc_io.xfer.txBuff = &acc_io.txBuff[0];
+				acc_io.xfer.rxBuff = &acc_io.rxBuff[0];
+				acc_io.xfer.rxSz = 0;
+				acc_io.xfer.txSz = 0;
 
-		// latch the new value
-		acc_io.xfer.txBuff = &acc_io.txBuff[0];
-		acc_io.xfer.txSz = 2;
-		acc_io.xfer.rxSz = 0;
-		acc_io.txBuff[0] = 0; // select register 0
-		acc_io.txBuff[1] = 0; // select latch acceleration data
-		acc_io.xfer.rxBuff = &acc_io.rxBuff[0];
-		acc_io.retcodeTransfer = Chip_I2C_MasterTransfer(i2cDev, &acc_io.xfer);
-		if (acc_io.retcodeTransfer)
-		{
-			acc_io.numerr_send1++;
-		}
+				acc_io.xfer.slaveAddr = 0x10; // the MXC62020GMW I2C address
 
-		// read the current accelerations values
-		acc_io.xfer.txSz = 1;
-		acc_io.txBuff[0] = 1; // select register 1
-		acc_io.xfer.rxSz = 4; // expect 4 data back: XH, XL, YH, YL
-		acc_io.xfer.rxBuff = &acc_io.rxBuff[0];
-		acc_io.xfer.txBuff = &acc_io.txBuff[0];
-		acc_io.retcodeTransfer =  Chip_I2C_MasterTransfer(i2cDev, &acc_io.xfer);
-		if (acc_io.retcodeTransfer)
-		{
-			acc_io.numerr_send2++;
-		}
+				acc_io.status = enum_acc_io_status_latch;
+				break;
+			}
+			case enum_acc_io_status_latch:
+			{
+				acc_io.status = enum_acc_io_status_read;
+				// latch the new value
+				acc_io.xfer.txBuff = &acc_io.txBuff[0];
+				acc_io.xfer.txSz = 2;
+				acc_io.xfer.rxSz = 0;
+				acc_io.txBuff[0] = 0; // select register 0
+				acc_io.txBuff[1] = 0; // select latch acceleration data
+				acc_io.xfer.rxBuff = &acc_io.rxBuff[0];
+				acc_io.retcodeTransfer = Chip_I2C_MasterTransfer(i2cDev, &acc_io.xfer);
+				if (acc_io.retcodeTransfer)
+				{
+					acc_io.numerr_send1++;
+					acc_io.status = enum_acc_io_status_init;
+					break;
+				}
+				break;
+			}
+			case enum_acc_io_status_read:
+			{
+				acc_io.status = enum_acc_io_status_latch;
+				// read the current accelerations values
+				acc_io.xfer.txSz = 1;
+				acc_io.txBuff[0] = 1; // select register 1
+				acc_io.xfer.rxSz = 4; // expect 4 data back: XH, XL, YH, YL
+				acc_io.xfer.rxBuff = &acc_io.rxBuff[0];
+				acc_io.xfer.txBuff = &acc_io.txBuff[0];
+				acc_io.retcodeTransfer =  Chip_I2C_MasterTransfer(i2cDev, &acc_io.xfer);
+				if (acc_io.retcodeTransfer)
+				{
+					acc_io.numerr_send2++;
+					acc_io.status = enum_acc_io_status_init;
+					break;
+				}
 
-		{
-			uint16_t Xacc = acc_io.rxBuff[0];
-			Xacc <<= 8;
-			Xacc |=  acc_io.rxBuff[1];
-			acc_io.Xacc = Xacc;
-			int16_t Xacc_unbiased;
-			Xacc_unbiased = Xacc;
-			Xacc_unbiased -= def_center_acc_value;
-			acc_io.Xacc_unbiased = Xacc_unbiased;
-			update_stats(&acc_io.statsX, Xacc_unbiased);
-		}
-		{
-			uint16_t Yacc = acc_io.rxBuff[2];
-			Yacc <<= 8;
-			Yacc |=  acc_io.rxBuff[3];
-			acc_io.Yacc = Yacc;
-			int16_t Yacc_unbiased;
-			Yacc_unbiased = Yacc;
-			Yacc_unbiased -= def_center_acc_value;
-			acc_io.Yacc_unbiased = Yacc_unbiased;
-			update_stats(&acc_io.statsY, Yacc_unbiased);
+				{
+					uint16_t Xacc = acc_io.rxBuff[0];
+					Xacc <<= 8;
+					Xacc |=  acc_io.rxBuff[1];
+					acc_io.Xacc = Xacc;
+					int16_t Xacc_unbiased;
+					Xacc_unbiased = Xacc;
+					Xacc_unbiased -= def_center_acc_value;
+					acc_io.Xacc_unbiased = Xacc_unbiased;
+					update_stats(&acc_io.statsX, Xacc_unbiased);
+				}
+				{
+					uint16_t Yacc = acc_io.rxBuff[2];
+					Yacc <<= 8;
+					Yacc |=  acc_io.rxBuff[3];
+					acc_io.Yacc = Yacc;
+					int16_t Yacc_unbiased;
+					Yacc_unbiased = Yacc;
+					Yacc_unbiased -= def_center_acc_value;
+					acc_io.Yacc_unbiased = Yacc_unbiased;
+					update_stats(&acc_io.statsY, Yacc_unbiased);
+				}
+				break;
+			}
 		}
 	}
 
