@@ -549,8 +549,6 @@ void test_i2c(void)
 	init_stats(&acc_io.statsX);
 	init_stats(&acc_io.statsY);
 
-
-
 	while(1)
 	{
 		switch(acc_io.status)
@@ -558,7 +556,7 @@ void test_i2c(void)
 			case enum_acc_io_status_init:
 			default:
 			{
-				i2c_app_init(I2C0, SPEED_100KHZ);
+				i2c_app_init(I2C0, SPEED_400KHZ);
 				acc_io.xfer.txBuff = &acc_io.txBuff[0];
 				acc_io.xfer.rxBuff = &acc_io.rxBuff[0];
 				acc_io.xfer.rxSz = 0;
@@ -631,5 +629,4 @@ void test_i2c(void)
 			}
 		}
 	}
-
 }
