@@ -64,3 +64,13 @@ uint8_t read_dipswitch2(void)
 
 	return 1;
 }
+
+void test_dipswitches(void)
+{
+	static uint8_t u1, u2;
+	while(1)
+	{
+		u1 = read_dipswitch1();
+		u2 = read_dipswitch2();
+	}
+}

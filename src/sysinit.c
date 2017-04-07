@@ -51,6 +51,7 @@
 void SystemInit(void)
 {
 #if defined(NO_BOARD_LIB)
+	void Chip_SystemInit(void);
 	/* Chip specific SystemInit */
 	Chip_SystemInit();
 #else

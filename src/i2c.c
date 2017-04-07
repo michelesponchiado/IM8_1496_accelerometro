@@ -32,6 +32,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "board.h"
+#include "i2c.h"
 
 /*****************************************************************************
  * Private types/enumerations/variables
@@ -75,7 +76,6 @@ static uint8_t buffer[2][256];
 static uint8_t iox_data[2]; /* PORT0 input port, PORT1 Output port */
 #endif
 
-static volatile uint32_t tick_cnt;
 
 /*****************************************************************************
  * Public types/enumerations/variables
@@ -374,19 +374,6 @@ static void i2c_rw_input(I2C_XFER_T *xfer, int ops)
 
 /*-------------------- End of IO Expansion slave device ----------------------*/
 
-/*****************************************************************************
- * Public functions
- ****************************************************************************/
-/**
- * @brief	SysTick Interrupt Handler
- * @return	Nothing
- * @note	Systick interrupt handler updates the button status
- */
-void SysTick_Handler(void)
-{
-	//i2c_iox_update_regs(2);
-	tick_cnt ++;
-}
 
 /**
  * @brief	I2C Interrupt Handler
@@ -474,159 +461,13 @@ int main(void)
 }
 #endif
 
-#define def_center_acc_value 2048
-typedef struct _type_acc_io_stats
-{
-	int32_t min, max, avg;
-	uint32_t idx;
-	int32_t accum;
-	int32_t values[32];
-	uint32_t nsamples;
-}type_acc_io_stats;
 
-typedef enum
+void init_i2c(void)
 {
-	enum_acc_io_status_init = 0,
-	enum_acc_io_status_latch,
-	enum_acc_io_status_read,
-	enum_acc_io_status_numof,
-}enum_acc_io_status;
-
-typedef struct _type_acc_io
-{
-	enum_acc_io_status status;
-	uint16_t Xacc;
-	uint16_t Yacc;
-	int16_t Xacc_unbiased;
-	int16_t Yacc_unbiased;
-	int retcodeTransfer;
-	int retcodeSend;
-	int retcodeCmdRead;
-	I2C_XFER_T xfer;
-	uint8_t txBuff[16];
-	uint8_t rxBuff[16];
-
-	type_acc_io_stats statsX, statsY;
-	uint32_t numerr_send1, numerr_send2;
-}type_acc_io;
-
-static void init_stats(type_acc_io_stats * p)
-{
-	memset(p, 0, sizeof(*p));
-	p->min = INT32_MAX;
-	p->max = INT32_MIN;
+	i2c_app_init(I2C0, SPEED_400KHZ);
 }
 
-static void update_stats(type_acc_io_stats * p, int16_t new_value)
+int do_i2c_transfer(I2C_XFER_T *pxfer)
 {
-#define def_max_num_elem_values (sizeof(p->values) / sizeof(p->values[0]))
-	uint32_t idx = p->idx;
-	if (idx >= def_max_num_elem_values)
-	{
-		idx = 0;
-	}
-	p->accum -= p->values[p->idx];
-	p->accum += new_value;
-	p->values[p->idx] = new_value;
-	p->avg = p->accum / def_max_num_elem_values;
-	if (new_value < p->min)
-	{
-		p->min = new_value;
-	}
-	if (new_value > p->max)
-	{
-		p->max = new_value;
-	}
-	p->nsamples++;
-}
-
-static type_acc_io acc_io;
-
-void test_i2c(void)
-{
-
-	memset(&acc_io, 0, sizeof(acc_io));
-	init_stats(&acc_io.statsX);
-	init_stats(&acc_io.statsY);
-
-	while(1)
-	{
-		switch(acc_io.status)
-		{
-			case enum_acc_io_status_init:
-			default:
-			{
-				i2c_app_init(I2C0, SPEED_400KHZ);
-				acc_io.xfer.txBuff = &acc_io.txBuff[0];
-				acc_io.xfer.rxBuff = &acc_io.rxBuff[0];
-				acc_io.xfer.rxSz = 0;
-				acc_io.xfer.txSz = 0;
-
-				acc_io.xfer.slaveAddr = 0x10; // the MXC62020GMW I2C address
-
-				acc_io.status = enum_acc_io_status_latch;
-				break;
-			}
-			case enum_acc_io_status_latch:
-			{
-				acc_io.status = enum_acc_io_status_read;
-				// latch the new value
-				acc_io.xfer.txBuff = &acc_io.txBuff[0];
-				acc_io.xfer.txSz = 2;
-				acc_io.xfer.rxSz = 0;
-				acc_io.txBuff[0] = 0; // select register 0
-				acc_io.txBuff[1] = 0; // select latch acceleration data
-				acc_io.xfer.rxBuff = &acc_io.rxBuff[0];
-				acc_io.retcodeTransfer = Chip_I2C_MasterTransfer(i2cDev, &acc_io.xfer);
-				if (acc_io.retcodeTransfer)
-				{
-					acc_io.numerr_send1++;
-					acc_io.status = enum_acc_io_status_init;
-					break;
-				}
-				break;
-			}
-			case enum_acc_io_status_read:
-			{
-				acc_io.status = enum_acc_io_status_latch;
-				// read the current accelerations values
-				acc_io.xfer.txSz = 1;
-				acc_io.txBuff[0] = 1; // select register 1
-				acc_io.xfer.rxSz = 4; // expect 4 data back: XH, XL, YH, YL
-				acc_io.xfer.rxBuff = &acc_io.rxBuff[0];
-				acc_io.xfer.txBuff = &acc_io.txBuff[0];
-				acc_io.retcodeTransfer =  Chip_I2C_MasterTransfer(i2cDev, &acc_io.xfer);
-				if (acc_io.retcodeTransfer)
-				{
-					acc_io.numerr_send2++;
-					acc_io.status = enum_acc_io_status_init;
-					break;
-				}
-
-				{
-					uint16_t Xacc = acc_io.rxBuff[0];
-					Xacc <<= 8;
-					Xacc |=  acc_io.rxBuff[1];
-					acc_io.Xacc = Xacc;
-					int16_t Xacc_unbiased;
-					Xacc_unbiased = Xacc;
-					Xacc_unbiased -= def_center_acc_value;
-					acc_io.Xacc_unbiased = Xacc_unbiased;
-					update_stats(&acc_io.statsX, Xacc_unbiased);
-				}
-				{
-					uint16_t Yacc = acc_io.rxBuff[2];
-					Yacc <<= 8;
-					Yacc |=  acc_io.rxBuff[3];
-					acc_io.Yacc = Yacc;
-					int16_t Yacc_unbiased;
-					Yacc_unbiased = Yacc;
-					Yacc_unbiased -= def_center_acc_value;
-					acc_io.Yacc_unbiased = Yacc_unbiased;
-					update_stats(&acc_io.statsY, Yacc_unbiased);
-				}
-				break;
-			}
-		}
-	}
+	return Chip_I2C_MasterTransfer(i2cDev, pxfer);
 }

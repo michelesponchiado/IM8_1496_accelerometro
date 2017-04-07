@@ -9,7 +9,9 @@
 #include "board.h"
 #include <stdio.h>
 #include "uart.h"
+#include "i2c.h"
 #include "dipswitches.h"
+#include "accelerometer.h"
 
 //using internal oscillator
 const uint32_t OscRateIn = 0;
@@ -85,24 +87,13 @@ int main(void)
 	init_uart();
 	tx_uart((uint8_t*)"hello", 5);
 
-	{
-		static uint8_t u1, u2;
-		while(1)
-		{
-			u1 = read_dipswitch1();
-			u2 = read_dipswitch2();
-		}
-
-	}
+	init_i2c();
+	accelerometer_module_init();
 
 	// if needed... we can set a system tick every ms
 	SysTick_Config(Chip_Clock_GetSystemClockRate() / 1000);
 
-	//Board_Init();
-	//Board_ADC_Init();
-	//DEBUGSTR("ADC Demo\r\n");
-	void test_i2c(void);
-	test_i2c();
+	test_accelerometer();
 
 	/* Should not run to here */
 	return 0;
