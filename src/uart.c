@@ -50,8 +50,8 @@
 STATIC RINGBUFF_T txring, rxring;
 
 /* Transmit and receive ring buffer sizes */
-#define UART_SRB_SIZE 128	/* Send */
-#define UART_RRB_SIZE 32	/* Receive */
+#define UART_SRB_SIZE 256	/* Send */
+#define UART_RRB_SIZE 256	/* Receive */
 
 /* Transmit and receive buffers */
 static uint8_t rxbuff[UART_RRB_SIZE], txbuff[UART_SRB_SIZE];

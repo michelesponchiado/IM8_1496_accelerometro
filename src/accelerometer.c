@@ -45,6 +45,7 @@ typedef struct _type_acc_io
 
 	type_acc_io_stats statsX, statsY;
 	uint32_t numerr_send1, numerr_send2;
+	uint32_t num_readOK;
 }type_acc_io;
 
 static void init_stats(type_acc_io_stats * p)
@@ -140,6 +141,8 @@ void accelerometer_module_handle_run(void)
 				break;
 			}
 
+			acc_io.num_readOK++;
+
 			{
 				uint16_t Xacc = acc_io.rxBuff[0];
 				Xacc <<= 8;
@@ -165,6 +168,16 @@ void accelerometer_module_handle_run(void)
 			break;
 		}
 	}
+}
+
+
+void refresh_accelerometer_info(type_accelerometer_main_info *pdst)
+{
+	pdst->num_readOK = acc_io.num_readOK;
+	pdst->numerr_send1 = acc_io.numerr_send1;
+	pdst->numerr_send2 = acc_io.numerr_send2;
+	pdst->acc_mms2[0] = (acc_io.Xacc_unbiased * 1000) >> 9;
+	pdst->acc_mms2[1] = (acc_io.Yacc_unbiased * 1000) >> 9;
 }
 
 void test_accelerometer(void)

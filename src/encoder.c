@@ -11,6 +11,7 @@
 #include <string.h>
 #include "system_tick.h"
 #include "uart.h"
+#include "encoder.h"
 
 
 // 6'000 rpm --> 100 round/second --> 10ms/round
@@ -24,6 +25,8 @@
 #define def_freq_calc_period_ms (1 << def_freq_calc_period_num_shift)
 #define def_freq_calc_num_packet (1 << def_freq_calc_num_packet_num_shift)
 #define def_freq_total_period_ms (def_freq_calc_period_ms * def_freq_calc_num_packet)
+
+
 typedef struct _type_encoder_interrupt
 {
 	uint8_t  prev_value;
@@ -40,6 +43,8 @@ typedef struct _type_encoder_interrupt
 	uint32_t num_err_too_high_input_freq;
 	uint32_t num_err_get_encoder;
 	uint64_t prev_update_freq_ms;
+	uint32_t update_disable;
+	type_encoder_main_info main_info;
 }type_encoder_interrupt;
 
 static type_encoder_interrupt encoder_interrupt;
@@ -123,12 +128,31 @@ void handle_encoder_interrupt(void)
 				encoder_interrupt.freq_Hz = (encoder_interrupt.num_counts_per_period * 1000) >> def_freq_total_period_num_shift;
 			}
 			encoder_interrupt.num_updates++;
+			{
+				type_encoder_main_info *p = &encoder_interrupt.main_info;
+				if (encoder_interrupt.update_disable == 0)
+				{
+					p->freq_Hz = encoder_interrupt.freq_Hz;
+					p->num_err_get_encoder = encoder_interrupt.num_err_get_encoder;
+					p->num_err_too_high_input_freq = encoder_interrupt.num_err_too_high_input_freq;
+					p->valid = encoder_interrupt.valid;
+					p->num_updates = encoder_interrupt.num_updates;
+				}
+			}
 		}
 	}
 }
 
+void refresh_encoder_info(type_encoder_main_info *pdst)
+{
+	encoder_interrupt.update_disable = 1;
+		*pdst = encoder_interrupt.main_info;
+	encoder_interrupt.update_disable = 0;
+}
+
 void encoder_module_handle_run(void)
 {
+#if 0
 	uint64_t now_ms = get_tick_count();
 	if (now_ms - encoder_interrupt.prev_update_freq_ms >= 500)
 	{
@@ -188,6 +212,7 @@ void encoder_module_handle_run(void)
 		}
 #endif
 	}
+#endif
 }
 
 void encoder_module_init(void)

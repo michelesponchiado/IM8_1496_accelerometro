@@ -8,6 +8,8 @@
 
 #include "board.h"
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include "uart.h"
 #include "i2c.h"
 #include "dipswitches.h"
@@ -81,6 +83,62 @@ void Board_SetupMuxing(void)
 	Chip_IOCON_SetPinMuxing(LPC_IOCON, pinmuxing, sizeof(pinmuxing) / sizeof(PINMUX_GRP_T));
 }
 
+typedef struct _type_main_info
+{
+	type_encoder_main_info encoder;
+	type_accelerometer_main_info accelerometer;
+	uint64_t prev_update_freq_ms;
+}type_main_info;
+
+type_main_info main_info;
+
+void print_info(void)
+{
+	uint64_t now_ms = get_tick_count();
+	if (now_ms - main_info.prev_update_freq_ms < 500)
+	{
+		return;
+	}
+	{
+		main_info.prev_update_freq_ms = now_ms;
+
+		char status_encoder[128];
+		int n_chars = 0;
+		type_encoder_main_info *p = &main_info.encoder;
+		n_chars = snprintf(status_encoder, sizeof(status_encoder), "freq [Hz]: %u (%s), nloop: %u, err_hi_freq: %u, err_get_enc: %u; "
+				,p->freq_Hz
+				,p->valid ? "OK":"invalid"
+				,p->num_updates
+				,p->num_err_too_high_input_freq
+				,p->num_err_get_encoder
+				);
+		if (n_chars > sizeof(status_encoder))
+		{
+			n_chars = sizeof(status_encoder);
+		}
+		tx_uart((uint8_t*)status_encoder, n_chars);
+	}
+
+	{
+		type_accelerometer_main_info *p = &main_info.accelerometer;
+		int n_chars = 0;
+		char status_accelerometer[128];
+		n_chars = snprintf(status_accelerometer, sizeof(status_accelerometer), "acc_X: %i [mm/s2], acc_Y: %i [mm/s2], nreadOK: %u, nreadERR1: %u, nreadERR2: %u; "
+				,p->acc_mms2[0]
+				,p->acc_mms2[1]
+				,p->num_readOK
+				,p->numerr_send1
+				,p->numerr_send2
+				);
+		if (n_chars > sizeof(status_accelerometer))
+		{
+			n_chars = sizeof(status_accelerometer);
+		}
+		tx_uart((uint8_t*)status_accelerometer, n_chars);
+	}
+	tx_uart((uint8_t*)"\r\n", 2);
+
+}
 
 int main(void)
 {
@@ -97,6 +155,8 @@ int main(void)
 	encoder_module_init();
 	accelerometer_module_init();
 	system_tick_module_init();
+
+	memset(&main_info, 0, sizeof(main_info));
 
 
 	encoder_module_register_callbacks();
@@ -133,7 +193,9 @@ int main(void)
 				case enum_run_status_run:
 				{
 					accelerometer_module_handle_run();
-					encoder_module_handle_run();
+					refresh_accelerometer_info(&main_info.accelerometer);
+					refresh_encoder_info(&main_info.encoder);
+					print_info();
 					break;
 				}
 			}
