@@ -13,29 +13,10 @@
 #include "uart.h"
 
 
-uint8_t is_OK_get_current_encoder(uint8_t *pvalue)
-{
-	unsigned int isOK = 0;
-	unsigned int num_try;
-	for (num_try = 0; !isOK && num_try < 10; num_try++)
-	{
-		volatile uint32_t u0;
-		u0 = Chip_GPIO_GetPortValue(LPC_GPIO_PORT, 2);
-		uint32_t u0_base = (u0 >> 4) & 0xff;
-		volatile uint32_t u1;
-		u1 = Chip_GPIO_GetPortValue(LPC_GPIO_PORT, 2);
-		uint32_t u1_base = (u1 >> 4) & 0xff;
-		if (u0_base == u1_base)
-		{
-			*pvalue = u0_base;
-			isOK = 1;
-		}
-	}
-	return isOK;
-}
-
 // 6'000 rpm --> 100 round/second --> 10ms/round
 // max 500ms delay --> 16 packs of 32ms each
+
+#define def_max_counting_freq_kHz 8
 
 #define def_freq_calc_period_num_shift 5 		// 1 << 5 = 32
 #define def_freq_calc_num_packet_num_shift 5	// 1 << 4 = 16
@@ -56,11 +37,49 @@ typedef struct _type_encoder_interrupt
 	uint32_t freq_Hz;
 	volatile uint32_t num_updates;
 	uint32_t valid;
-	uint32_t num_err_delta;
+	uint32_t num_err_too_high_input_freq;
+	uint32_t num_err_get_encoder;
 	uint64_t prev_update_freq_ms;
 }type_encoder_interrupt;
 
 static type_encoder_interrupt encoder_interrupt;
+
+
+uint8_t is_OK_get_current_encoder(uint8_t *pvalue)
+{
+	unsigned int isOK = 0;
+	unsigned int num_try;
+	for (num_try = 0; !isOK && num_try < 10; num_try++)
+	{
+#define def_max_consec_reading_steady 5
+		volatile uint32_t u[def_max_consec_reading_steady];
+		unsigned int i;
+		for (i = 0; i < def_max_consec_reading_steady; i++)
+		{
+			uint32_t u_current = Chip_GPIO_GetPortValue(LPC_GPIO_PORT, 2);
+			u[i] = (u_current >> 4) & 0xff;
+		}
+		isOK = 1;
+		uint32_t u_first = u[0];
+		for (i = 1; isOK && i < def_max_consec_reading_steady; i++)
+		{
+			if (u[i] != u_first)
+			{
+				isOK = 0;
+			}
+		}
+		if (isOK)
+		{
+			*pvalue = u_first;
+		}
+	}
+	if (!isOK)
+	{
+		encoder_interrupt.num_err_get_encoder++;
+	}
+	return isOK;
+}
+
 
 void handle_encoder_interrupt(void)
 {
@@ -76,9 +95,9 @@ void handle_encoder_interrupt(void)
 		}
 		delta = new_value - encoder_interrupt.prev_value;
 		encoder_interrupt.prev_value = new_value;
-		if (delta > 8)
+		if (delta > def_max_counting_freq_kHz)
 		{
-			encoder_interrupt.num_err_delta++;
+			encoder_interrupt.num_err_too_high_input_freq++;
 			delta = 0;
 		}
 		encoder_interrupt.cur_count += delta;
@@ -121,16 +140,30 @@ void encoder_module_handle_run(void)
 		{
 			uint32_t n = encoder_interrupt.num_updates;
 			uint32_t freq_Hz = encoder_interrupt.freq_Hz;
-			uint32_t val8 = encoder_interrupt.prev_value;
 			if (n == encoder_interrupt.num_updates)
 			{
 				char status_encoder[64];
+				int n_chars = 0;
 #if 1
-				int n_chars = snprintf(status_encoder, sizeof(status_encoder), "freq [Hz]: %u, nc: %3u\r\n"
-						,freq_Hz
-						,encoder_interrupt.num_counts_per_period
-						);
+				if (encoder_interrupt.valid)
+				{
+					n_chars = snprintf(status_encoder, sizeof(status_encoder), "freq [Hz]: %u, nloop: %u, err_hi_freq: %u, err_get_enc: %u\r\n"
+							,freq_Hz
+							,encoder_interrupt.num_updates
+							,encoder_interrupt.num_err_too_high_input_freq
+							,encoder_interrupt.num_err_get_encoder
+							);
+				}
+				else
+				{
+					n_chars = snprintf(status_encoder, sizeof(status_encoder), "freq [Hz]: INVALID, nloop: %u, err_hi_freq: %u, err_get_enc: %u\r\n"
+							,encoder_interrupt.num_updates
+							,encoder_interrupt.num_err_too_high_input_freq
+							,encoder_interrupt.num_err_get_encoder
+							);
+				}
 #else
+				uint32_t val8 = encoder_interrupt.prev_value;
 				int n_chars = snprintf(status_encoder, sizeof(status_encoder), "cnt: 0x%02X %c%c%c%c%c%c%c%c, freq [Hz]: %u, nc: %3u\r\n"
 						,val8
 						,(val8 & 0x80) ? '1' : '0'
