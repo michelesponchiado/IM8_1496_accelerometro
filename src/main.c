@@ -12,6 +12,8 @@
 #include "i2c.h"
 #include "dipswitches.h"
 #include "accelerometer.h"
+#include "encoder.h"
+#include "system_tick.h"
 
 //using internal oscillator
 const uint32_t OscRateIn = 0;
@@ -29,6 +31,8 @@ STATIC const PINMUX_GRP_T pinmuxing[] = {
 	{(uint32_t)IOCON_PIO3_1,  (IOCON_FUNC0 | IOCON_MODE_PULLUP | IOCON_HYS_EN)}, // PIO3_1: DIP1-6
 	{(uint32_t)IOCON_PIO3_2,  (IOCON_FUNC0 | IOCON_MODE_PULLUP | IOCON_HYS_EN)}, // PIO3_2: DIP1-7
 	{(uint32_t)IOCON_PIO3_3,  (IOCON_FUNC0 | IOCON_MODE_PULLUP | IOCON_HYS_EN)}, // PIO3_3: DIP1-8
+// IN_ENC PIO1_0
+	{(uint32_t)IOCON_PIO1_0,  (IOCON_FUNC0 | IOCON_MODE_PULLUP | IOCON_HYS_EN)},
 // UART PIO1_6..7
 	{(uint32_t)IOCON_PIO1_6,  (IOCON_FUNC1 | IOCON_RESERVED_BIT_6 | IOCON_RESERVED_BIT_7 | IOCON_MODE_INACT)}, /* PIO1_6 used for RXD */
 	{(uint32_t)IOCON_PIO1_7,  (IOCON_FUNC1 | IOCON_RESERVED_BIT_6 | IOCON_RESERVED_BIT_7 | IOCON_MODE_INACT)}, /* PIO1_7 used for TXD */
@@ -84,16 +88,59 @@ int main(void)
 	SystemCoreClockUpdate();
 	Board_SetupMuxing();
 
-	init_uart();
-	tx_uart((uint8_t*)"hello", 5);
-
+// modules initializations
+	{
+		init_uart();
+		tx_uart((uint8_t*)"hello\r\n", 7);
+	}
 	init_i2c();
+	encoder_module_init();
 	accelerometer_module_init();
+	system_tick_module_init();
 
-	// if needed... we can set a system tick every ms
-	SysTick_Config(Chip_Clock_GetSystemClockRate() / 1000);
 
-	test_accelerometer();
+	encoder_module_register_callbacks();
+
+	// test_accelerometer();
+
+	{
+		typedef enum
+		{
+			enum_run_status_idle = 0,
+			enum_run_status_init,
+			enum_run_status_run,
+
+			enum_run_status_numof
+		}enum_run_status;
+		enum_run_status s = enum_run_status_idle;
+
+		while(1)
+		{
+			switch(s)
+			{
+				case enum_run_status_idle:
+				default:
+				{
+					s = enum_run_status_init;
+					break;
+				}
+				case enum_run_status_init:
+				{
+					accelerometer_module_init();
+					s = enum_run_status_run;
+					break;
+				}
+				case enum_run_status_run:
+				{
+					accelerometer_module_handle_run();
+					encoder_module_handle_run();
+					break;
+				}
+			}
+		}
+	}
+
+
 
 	/* Should not run to here */
 	return 0;

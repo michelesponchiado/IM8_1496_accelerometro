@@ -110,6 +110,7 @@ void init_uart(void)
 	/* preemption = 1, sub-priority = 1 */
 	NVIC_SetPriority(UART0_IRQn, 1);
 	NVIC_EnableIRQ(UART0_IRQn);
+
 }
 
 unsigned int tx_uart(uint8_t *p, uint32_t numof)

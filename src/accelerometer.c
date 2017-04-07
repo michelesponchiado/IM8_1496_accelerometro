@@ -86,7 +86,7 @@ void accelerometer_module_init(void)
 	init_stats(&acc_io.statsY);
 }
 
-void accelerometer_module_handle(void)
+void accelerometer_module_handle_run(void)
 {
 	switch(acc_io.status)
 	{
@@ -174,6 +174,6 @@ void test_accelerometer(void)
 
 	while(1)
 	{
-		accelerometer_module_handle();
+		accelerometer_module_handle_run();
 	}
 }

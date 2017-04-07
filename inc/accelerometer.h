@@ -10,6 +10,6 @@
 
 void test_accelerometer(void);
 void accelerometer_module_init(void);
-void accelerometer_module_handle(void);
+void accelerometer_module_handle_run(void);
 
 #endif /* INC_ACCELEROMETER_H_ */
