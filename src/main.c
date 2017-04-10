@@ -136,6 +136,7 @@ typedef struct _type_main_info
 	uint64_t prev_update_freq_ms;
 	uint64_t uptime_ms;
 	type_struct_control control;
+	uint32_t green_led;
 
 }type_main_info;
 
@@ -466,6 +467,10 @@ void print_info(void)
 	{
 		return;
 	}
+	{
+		main_info.green_led = !main_info.green_led;
+		set_led(enum_LED_green, main_info.green_led);
+	}
 	main_info.prev_update_freq_ms = now_ms;
 	main_info.uptime_ms = now_ms;
 
@@ -545,7 +550,7 @@ void print_info(void)
 				vANSI_goto_line_column(handle_print_menu.line, sizeof(handle_print_menu.line),MENU_ENCODER_ROW, MENU_ENCODER_COLUMN);
 				int n_chars = 0;
 				type_encoder_main_info *p = &main_info.encoder;
-				n_chars = snprintf(handle_print_menu.line, sizeof(handle_print_menu.line), "Speed          current[rpm  ]:%-5u  min[rpm  ]: %-5u MAX[rpm  ]: %-5u #OK:%-9u #ERR1:%-4u #ERR2:%-4u"
+				n_chars = snprintf(handle_print_menu.line, sizeof(handle_print_menu.line), "Speed          current[rpm  ]: %-5u min[rpm  ]: %-5u MAX[rpm  ]: %-5u #OK:%-9u #ERR1:%-4u #ERR2:%-4u"
 						,p->freq_Hz * 60
 						,p->min_freq_Hz * 60
 						,p->max_freq_Hz * 60
