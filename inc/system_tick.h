@@ -22,6 +22,7 @@ void unregister_tick_callback(enum_tick_callback_type e);
 
 void system_tick_module_init(void);
 uint64_t get_tick_count(void);
+void delay_ms(uint32_t ms);
 
 
 #endif /* INC_SYSTEM_TICK_H_ */

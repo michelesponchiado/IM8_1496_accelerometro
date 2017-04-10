@@ -48,6 +48,19 @@ uint64_t get_tick_count(void)
 	return tick_cnt;
 }
 
+void delay_ms(uint32_t ms)
+{
+	uint64_t base = get_tick_count();
+	while(1)
+	{
+		uint64_t now = get_tick_count();
+		if (now - base >= ms)
+		{
+			break;
+		}
+	}
+}
+
 void system_tick_module_init(void)
 {
 	memset(&registered_callbacks, 0, sizeof(registered_callbacks));

@@ -35,6 +35,8 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/lpc_chip_13xx/inc}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/IM8_1496_accelerometro/inc}&quot;"/>
 								</option>
+								<option id="com.crt.advproject.gcc.exe.debug.option.optimization.level.785153658" name="Optimization Level" superClass="com.crt.advproject.gcc.exe.debug.option.optimization.level" value="gnu.c.optimization.level.size" valueType="enumerated"/>
+								<option id="com.crt.advproject.gcc.lto.785620860" name="Enable Link-time optimization (-flto)" superClass="com.crt.advproject.gcc.lto" value="false" valueType="boolean"/>
 								<inputType id="com.crt.advproject.compiler.input.1850008990" superClass="com.crt.advproject.compiler.input"/>
 							</tool>
 							<tool id="com.crt.advproject.gas.exe.debug.721503969" name="MCU Assembler" superClass="com.crt.advproject.gas.exe.debug">
@@ -64,6 +66,9 @@
 								<option id="gnu.c.link.option.paths.1905028774" name="Library search path (-L)" superClass="gnu.c.link.option.paths" valueType="libPaths">
 									<listOptionValue builtIn="false" value="/home/michele/LPCXpresso/workspace/lpc_chip_13xx/Debug"/>
 								</option>
+								<option id="gnu.c.link.option.nodeflibs.1092944058" name="Do not use default libraries (-nodefaultlibs)" superClass="gnu.c.link.option.nodeflibs" value="true" valueType="boolean"/>
+								<option id="com.crt.advproject.link.gcc.lto.1246991711" name="Enable Link-time optimization (-flto)" superClass="com.crt.advproject.link.gcc.lto" value="true" valueType="boolean"/>
+								<option id="com.crt.advproject.link.gcc.lto.optmization.level.1279047506" name="Link-time optimization level" superClass="com.crt.advproject.link.gcc.lto.optmization.level" value="link.c.optimization.level.size" valueType="enumerated"/>
 								<inputType id="cdt.managedbuild.tool.gnu.c.linker.input.30917938" superClass="cdt.managedbuild.tool.gnu.c.linker.input">
 									<additionalInput kind="additionalinputdependency" paths="$(USER_OBJS)"/>
 									<additionalInput kind="additionalinput" paths="$(LIBS)"/>

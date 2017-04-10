@@ -15,6 +15,8 @@ void accelerometer_module_handle_run(void);
 typedef struct _type_accelerometer_main_info
 {
 	int32_t acc_mms2[2];
+	int32_t min_acc_mms2[2];
+	int32_t max_acc_mms2[2];
 	uint32_t num_readOK;
 	uint32_t numerr_send1;
 	uint32_t numerr_send2;

@@ -38,6 +38,8 @@ typedef struct _type_encoder_interrupt
 	uint32_t counts[def_freq_calc_num_packet];
 	uint32_t num_counts_per_period;
 	uint32_t freq_Hz;
+	uint32_t min_freq_Hz;
+	uint32_t max_freq_Hz;
 	volatile uint32_t num_updates;
 	uint32_t valid;
 	uint32_t num_err_too_high_input_freq;
@@ -126,6 +128,14 @@ void handle_encoder_interrupt(void)
 				}
 				encoder_interrupt.num_counts_per_period = num_counts_per_period;
 				encoder_interrupt.freq_Hz = (encoder_interrupt.num_counts_per_period * 1000) >> def_freq_total_period_num_shift;
+				if (encoder_interrupt.min_freq_Hz > encoder_interrupt.freq_Hz)
+				{
+					encoder_interrupt.min_freq_Hz = encoder_interrupt.freq_Hz;
+				}
+				if (encoder_interrupt.max_freq_Hz < encoder_interrupt.freq_Hz)
+				{
+					encoder_interrupt.max_freq_Hz = encoder_interrupt.freq_Hz;
+				}
 			}
 			encoder_interrupt.num_updates++;
 			{
@@ -137,6 +147,8 @@ void handle_encoder_interrupt(void)
 					p->num_err_too_high_input_freq = encoder_interrupt.num_err_too_high_input_freq;
 					p->valid = encoder_interrupt.valid;
 					p->num_updates = encoder_interrupt.num_updates;
+					p->min_freq_Hz = encoder_interrupt.min_freq_Hz;
+					p->max_freq_Hz = encoder_interrupt.max_freq_Hz;
 				}
 			}
 		}
@@ -228,6 +240,8 @@ void encoder_module_init(void)
 			break;
 		}
 	}
+	encoder_interrupt.min_freq_Hz = UINT32_MAX;
+	encoder_interrupt.max_freq_Hz = 0;
 
 }
 void encoder_module_register_callbacks(void)

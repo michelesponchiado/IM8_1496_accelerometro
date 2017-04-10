@@ -115,6 +115,7 @@ void accelerometer_module_handle_run(void)
 			acc_io.txBuff[0] = 0; // select register 0
 			acc_io.txBuff[1] = 0; // select latch acceleration data
 			acc_io.xfer.rxBuff = &acc_io.rxBuff[0];
+			acc_io.xfer.slaveAddr = 0x10; // the MXC62020GMW I2C address
 			acc_io.retcodeTransfer = do_i2c_transfer( &acc_io.xfer);
 			if (acc_io.retcodeTransfer)
 			{
@@ -133,6 +134,7 @@ void accelerometer_module_handle_run(void)
 			acc_io.xfer.rxSz = 4; // expect 4 data back: XH, XL, YH, YL
 			acc_io.xfer.rxBuff = &acc_io.rxBuff[0];
 			acc_io.xfer.txBuff = &acc_io.txBuff[0];
+			acc_io.xfer.slaveAddr = 0x10; // the MXC62020GMW I2C address
 			acc_io.retcodeTransfer =  do_i2c_transfer( &acc_io.xfer);
 			if (acc_io.retcodeTransfer)
 			{
@@ -176,8 +178,12 @@ void refresh_accelerometer_info(type_accelerometer_main_info *pdst)
 	pdst->num_readOK = acc_io.num_readOK;
 	pdst->numerr_send1 = acc_io.numerr_send1;
 	pdst->numerr_send2 = acc_io.numerr_send2;
-	pdst->acc_mms2[0] = (acc_io.Xacc_unbiased * 1000) >> 9;
-	pdst->acc_mms2[1] = (acc_io.Yacc_unbiased * 1000) >> 9;
+	pdst->acc_mms2[0] = (acc_io.Xacc_unbiased * 10000) >> 9;
+	pdst->acc_mms2[1] = (acc_io.Yacc_unbiased * 10000) >> 9;
+	pdst->min_acc_mms2[0] = (acc_io.statsX.min * 10000) >> 9;
+	pdst->min_acc_mms2[1] = (acc_io.statsY.min * 10000) >> 9;
+	pdst->max_acc_mms2[0] = (acc_io.statsX.max * 10000) >> 9;
+	pdst->max_acc_mms2[1] = (acc_io.statsY.max * 10000) >> 9;
 }
 
 void test_accelerometer(void)
