@@ -33,11 +33,11 @@ typedef union
 uint8_t read_dipswitch1(void)
 {
 	uint_bits p0;
-	p0.uint = Chip_GPIO_GetPortValue(LPC_GPIO_PORT, 0);
+	p0.uint = Chip_GPIO_GetPortValue(LPC_GPIO_PORT, 0) ^ 0xffff;
 	uint_bits p1;
-	p1.uint = Chip_GPIO_GetPortValue(LPC_GPIO_PORT, 1);
+	p1.uint = Chip_GPIO_GetPortValue(LPC_GPIO_PORT, 1) ^ 0xffff;
 	uint_bits p3;
-	p3.uint = Chip_GPIO_GetPortValue(LPC_GPIO_PORT, 3);
+	p3.uint = Chip_GPIO_GetPortValue(LPC_GPIO_PORT, 3) ^ 0xffff;
 	return 		(p0.b.b3 << 0)
 			| 	(p0.b.b6 << 1)
 			| 	(p1.b.b8 << 2)
@@ -54,7 +54,7 @@ uint8_t read_dipswitch1(void)
 uint8_t read_dipswitch2(void)
 {
 	uint_bits p2;
-	p2.uint = Chip_GPIO_GetPortValue(LPC_GPIO_PORT, 2);
+	p2.uint = Chip_GPIO_GetPortValue(LPC_GPIO_PORT, 2) ^ 0xffff;
 	return
 			  	(p2.b.b0 << 0)
 			| 	(p2.b.b1 << 1)

@@ -124,8 +124,8 @@ unsigned int is_OK_write_rom_table_entry(uint8_t idx, type_rom_table_entry *p_sr
 void test_table(void)
 {
 	type_rom_table_entry test_entry_src;
-	test_entry_src.threshold_amplitude_X_um = 1001;
-	test_entry_src.threshold_amplitude_Y_um = 2002;
+	test_entry_src.threshold_amplitude_X_um = 150;
+	test_entry_src.threshold_amplitude_Y_um = 150;
 	test_entry_src.threshold_rpm = 107;
 	unsigned int is_OK = 1;
 	unsigned int idx_table;
