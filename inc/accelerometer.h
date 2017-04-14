@@ -22,5 +22,7 @@ typedef struct _type_accelerometer_main_info
 	uint32_t numerr_send2;
 }type_accelerometer_main_info;
 void refresh_accelerometer_info(type_accelerometer_main_info *pdst);
+//void reset_accelerometer_stats(void);
+unsigned int ui_acc_stats_valid(void);
 
 #endif /* INC_ACCELEROMETER_H_ */

@@ -36,8 +36,10 @@ typedef struct _type_encoder_interrupt
 	uint32_t cur_count;
 	uint32_t idx_counts;
 	uint32_t counts[def_freq_calc_num_packet];
+	uint64_t last_count_tick[def_freq_calc_num_packet];
 	uint32_t num_counts_per_period;
 	uint32_t freq_Hz;
+	uint32_t freq_mHz;
 	uint32_t min_freq_Hz;
 	uint32_t max_freq_Hz;
 	volatile uint32_t num_updates;
@@ -88,6 +90,7 @@ uint8_t is_OK_get_current_encoder(uint8_t *pvalue)
 }
 
 
+
 void handle_encoder_interrupt(void)
 {
 	uint8_t new_value = 0;
@@ -107,9 +110,15 @@ void handle_encoder_interrupt(void)
 			encoder_interrupt.num_err_too_high_input_freq++;
 			delta = 0;
 		}
+		uint64_t now = get_tick_count();
+		if (delta)
+		{
+			encoder_interrupt.last_count_tick[encoder_interrupt.idx_counts] = now;
+		}
 		encoder_interrupt.cur_count += delta;
 		if (++encoder_interrupt.idx_cur_count >= def_freq_calc_period_ms)
 		{
+			uint32_t latest_idx_counts = encoder_interrupt.idx_counts;
 			encoder_interrupt.counts[encoder_interrupt.idx_counts] = encoder_interrupt.cur_count;
 			encoder_interrupt.idx_cur_count = 0;
 			encoder_interrupt.cur_count = 0;
@@ -118,16 +127,35 @@ void handle_encoder_interrupt(void)
 				encoder_interrupt.idx_counts = 0;
 				encoder_interrupt.valid = 1;
 			}
+			uint32_t oldest_idx_counts = encoder_interrupt.idx_counts;
 			if (encoder_interrupt.valid)
 			{
 				uint32_t num_counts_per_period = 0;
 				unsigned int i;
-				for (i = 0; i < def_freq_calc_num_packet; i++)
+				unsigned int idx = oldest_idx_counts;
+				for (i = 0; i < def_freq_calc_num_packet - 1; i++)
 				{
-					num_counts_per_period += encoder_interrupt.counts[i];
+					if (++idx >= def_freq_calc_num_packet)
+					{
+						idx = 0;
+					}
+					num_counts_per_period += encoder_interrupt.counts[idx];
 				}
+				uint64_t oldest_time = encoder_interrupt.last_count_tick[oldest_idx_counts];
+				uint64_t latest_time = encoder_interrupt.last_count_tick[latest_idx_counts];
+				encoder_interrupt.last_count_tick[oldest_idx_counts] = latest_time;
+				uint32_t delta_time_ms = latest_time - oldest_time;
+
 				encoder_interrupt.num_counts_per_period = num_counts_per_period;
-				encoder_interrupt.freq_Hz = (encoder_interrupt.num_counts_per_period * 1000) >> def_freq_total_period_num_shift;
+				if (delta_time_ms)
+				{
+					encoder_interrupt.freq_mHz = (num_counts_per_period * 1000 * 1000) / delta_time_ms;
+				}
+				else
+				{
+					encoder_interrupt.freq_mHz = 0;
+				}
+				encoder_interrupt.freq_Hz = encoder_interrupt.freq_mHz / 1000;
 				if (encoder_interrupt.min_freq_Hz > encoder_interrupt.freq_Hz)
 				{
 					encoder_interrupt.min_freq_Hz = encoder_interrupt.freq_Hz;
@@ -143,6 +171,7 @@ void handle_encoder_interrupt(void)
 				if (encoder_interrupt.update_disable == 0)
 				{
 					p->freq_Hz = encoder_interrupt.freq_Hz;
+					p->freq_mHz = encoder_interrupt.freq_mHz;
 					p->num_err_get_encoder = encoder_interrupt.num_err_get_encoder;
 					p->num_err_too_high_input_freq = encoder_interrupt.num_err_too_high_input_freq;
 					p->valid = encoder_interrupt.valid;
@@ -161,6 +190,13 @@ void refresh_encoder_info(type_encoder_main_info *pdst)
 		*pdst = encoder_interrupt.main_info;
 	encoder_interrupt.update_disable = 0;
 }
+
+void init_encoder_stats(void)
+{
+	encoder_interrupt.min_freq_Hz = UINT32_MAX;
+	encoder_interrupt.max_freq_Hz = 0;
+}
+
 
 void encoder_module_handle_run(void)
 {
@@ -240,11 +276,14 @@ void encoder_module_init(void)
 			break;
 		}
 	}
-	encoder_interrupt.min_freq_Hz = UINT32_MAX;
-	encoder_interrupt.max_freq_Hz = 0;
+	init_encoder_stats();
 
 }
 void encoder_module_register_callbacks(void)
 {
 	register_tick_callback(enum_tick_callback_type_encoder, handle_encoder_interrupt);
+}
+void reset_encoder_stats(void)
+{
+	init_encoder_stats();
 }

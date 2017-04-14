@@ -21,6 +21,27 @@
 #include "relais.h"
 #include <ctype.h>
 
+/*
+ * condizione normale:--> PRIORITA' 2
+ *        VERDE LAMPEGGIA     ROSSO SPENTO
+ * errore soglia ampiezza superata: --> PRIORITA' 2 led rosso, distinguere X ed Y? STACCARE RELAIS SE ALLARME ATTIVO, LED RIMANE IMPOSTATO COSI' PER 1 MINUTO
+ *    X   VERDE LAMPEGGIA     ROSSO LAMPEGGIO LENTO
+ *    Y   VERDE LAMPEGGIA     ROSSO LAMPEGGIO VELOCE
+ *    X+Y VERDE LAMPEGGIA     ROSSO ACCESO FISSO
+ * errore scheda--> PRIORITA' 0
+ *    - I2C: lettura accelerometro o eeprom, STACCARE RELAIS SE ALLARME ATTIVO, LED RIMANE IMPOSTATO COSI' FINCHE' MACCHINA SPENTA E RIACCESA
+ *    - watchdog reset                       STACCARE RELAIS SE ALLARME ATTIVO, LED RIMANE IMPOSTATO COSI' FINCHE' MACCHINA SPENTA E RIACCESA
+ *    X   VERDE SPENTO        ROSSO ACCESO FISSO
+ * errore dipswitch impostato su entry non valida --> PRIORITA' 1
+ *    X   VERDE ACCESO FISSO ROSSO ACCESO FISSO   STACCARE RELAIS SE ALLARME ATTIVO, LED RIMANE IMPOSTATO COSI' FINCHE' DIPSWITCH OK
+ *
+ *
+ * invertire uscita relais, attivo a OFF
+ * dipswitch: posizione 0 non è mai ammessa, si parte da 1 in su
+ * - 5 bit bastano per definire la tabella, gli altri 3 si usano per validare i 5 bit
+ *
+ */
+
 #define DEF_FIRMWARE_VERSION_STRING "IMESA 1496 accelerometer app: 0.1 "__DATE__" "__TIME__
 
 //using internal oscillator
@@ -109,6 +130,8 @@ typedef enum
 	enum_status_control_numof,
 }enum_status_control;
 
+#define def_num_shift_length_hist_amp 8
+#define def_length_hist_amp (1 << def_num_shift_length_hist_amp)
 typedef struct _type_struct_control
 {
 	enum_status_control status;
@@ -117,6 +140,9 @@ typedef struct _type_struct_control
 	uint8_t dipsw1;
 	uint32_t amplitude_um_X;
 	uint32_t amplitude_um_Y;
+	uint32_t idx_hist_amplitude;
+	uint32_t hist_amplitude_um_X[def_length_hist_amp];
+	uint32_t hist_amplitude_um_Y[def_length_hist_amp];
 	int32_t amplitude_last_alarm_um_X;
 	int32_t amplitude_last_alarm_um_Y;
 	uint32_t pause_alarm_elapsed_ms, pause_validate_alarm_elapsed_ms;
@@ -129,6 +155,19 @@ typedef struct _type_struct_control
 	uint32_t alarm_num_X, alarm_num_Y;
 }type_struct_control;
 
+#ifdef def_enable_correlation
+
+#define def_max_values_correlation 512
+typedef struct _type_correlation
+{
+	unsigned int idx;
+	int32_t xvalues[def_max_values_correlation];
+	int32_t yvalues[def_max_values_correlation];
+	int32_t correlation;
+	uint64_t old_tick;
+}type_correlation;
+#endif
+
 typedef struct _type_main_info
 {
 	type_encoder_main_info encoder;
@@ -137,6 +176,15 @@ typedef struct _type_main_info
 	uint64_t uptime_ms;
 	type_struct_control control;
 	uint32_t green_led;
+	uint32_t cur_max_ampX, cur_max_ampY;
+	uint64_t base_cur_max_amp;
+	//uint64_t last_reset_minmaxacc_ms;
+	int32_t differentialXmms2;
+	int32_t differentialYmms2;
+#ifdef def_enable_correlation
+	type_correlation correlation;
+#endif
+	uint32_t cur_delta_maxmin;
 
 }type_main_info;
 
@@ -171,9 +219,6 @@ type_main_info main_info;
 #define def_ANSI_ClearEndOfLine "\x1b[K"
 #define def_ANSI_goto_line_column_format "\x1b[%u;%uf"
 #define tx_uart_conststr(s) tx_uart((uint8_t*)s, strlen(s))
-
-
-
 
 
 
@@ -254,6 +299,11 @@ void check_rx_chars(void)
 		if (c == 'R')
 		{
 			handle_print_menu.status = enum_print_status_idle;
+		}
+		else if (c == 'C')
+		{
+			reset_encoder_stats();
+			//reset_accelerometer_stats();
 		}
 		else if (c == 'W')
 		{
@@ -463,16 +513,38 @@ void print_info(void)
 
 	uint64_t now_ms = get_tick_count();
 	int32_t delta_ms = now_ms - main_info.prev_update_freq_ms;
-	if (delta_ms < 200)
+	if (delta_ms < 100)
 	{
 		return;
 	}
+	if (!ui_acc_stats_valid())
+	{
+		return;
+	}
+
 	{
 		main_info.green_led = !main_info.green_led;
 		set_led(enum_LED_green, main_info.green_led);
 	}
 	main_info.prev_update_freq_ms = now_ms;
 	main_info.uptime_ms = now_ms;
+#if 0
+	{
+		type_struct_control *p_control = &main_info.control;
+
+		uint32_t rpm = (main_info.encoder.freq_mHz * 60) / 1000 ;
+		int n_chars = 0;
+		n_chars = snprintf(handle_print_menu.line, sizeof(handle_print_menu.line), "%u %i %u %i %u\r\n"
+				,rpm, main_info.differentialXmms2, p_control->amplitude_um_X, main_info.differentialYmms2, p_control->amplitude_um_Y
+				);
+		if (n_chars > sizeof(handle_print_menu.line))
+		{
+			n_chars = sizeof(handle_print_menu.line);
+		}
+		tx_uart((uint8_t*)handle_print_menu.line, n_chars);
+		return;
+	}
+#endif
 
 	switch(handle_print_menu.status)
 	{
@@ -551,7 +623,7 @@ void print_info(void)
 				int n_chars = 0;
 				type_encoder_main_info *p = &main_info.encoder;
 				n_chars = snprintf(handle_print_menu.line, sizeof(handle_print_menu.line), "Speed          current[rpm  ]: %-5u min[rpm  ]: %-5u MAX[rpm  ]: %-5u #OK:%-9u #ERR1:%-4u #ERR2:%-4u"
-						,p->freq_Hz * 60
+						,(p->freq_mHz * 60) / 1000
 						,p->min_freq_Hz * 60
 						,p->max_freq_Hz * 60
 						,p->num_updates
@@ -567,7 +639,6 @@ void print_info(void)
 
 			}
 
-
 			{
 				tx_uart_conststr(def_ANSI_reset);
 				tx_uart_conststr(def_ANSI_Background_White);
@@ -578,7 +649,7 @@ void print_info(void)
 
 					vANSI_goto_line_column(handle_print_menu.line, sizeof(handle_print_menu.line),MENU_ACCELEROMETER_ROW_X, MENU_ACCELEROMETER_COLUMN_DATA);
 					n_chars = snprintf(handle_print_menu.line, sizeof(handle_print_menu.line), "Acceleration X current[mm/s2]:%-+6i min[mm/s2]:%-+6i MAX[mm/s2]:%-+6i"
-							,p->acc_mms2[0]
+							,main_info.differentialXmms2
 							,p->min_acc_mms2[0]
 							,p->max_acc_mms2[0]
 							);
@@ -591,7 +662,7 @@ void print_info(void)
 
 					vANSI_goto_line_column(handle_print_menu.line, sizeof(handle_print_menu.line),MENU_ACCELEROMETER_ROW_Y, MENU_ACCELEROMETER_COLUMN_DATA);
 					n_chars = snprintf(handle_print_menu.line, sizeof(handle_print_menu.line), "             Y current[mm/s2]:%-+6i min[mm/s2]:%-+6i MAX[mm/s2]:%-+6i #OK:%-9u #ERR1:%-4u #ERR2:%-4u"
-							,p->acc_mms2[1]
+							,main_info.differentialYmms2
 							,p->min_acc_mms2[1]
 							,p->max_acc_mms2[1]
 							,p->num_readOK
@@ -641,7 +712,7 @@ void print_info(void)
 			}
 			{
 				tx_uart_conststr(def_ANSI_reset);
-				tx_uart_conststr(def_ANSI_Background_Magenta);
+				tx_uart_conststr(def_ANSI_Background_White);
 				tx_uart_conststr(def_ANSI_Black);
 				type_handle_rom_entry *p = &main_info.control.rom_entry;
 
@@ -654,6 +725,7 @@ void print_info(void)
 						,p->value.threshold_rpm
 						,p->value.threshold_amplitude_X_um
 						,p->value.threshold_amplitude_Y_um
+						//,main_info.correlation.correlation
 						);
 				if (n_chars > sizeof(handle_print_menu.line))
 				{
@@ -682,11 +754,12 @@ void print_info(void)
 
 				vANSI_goto_line_column(handle_print_menu.line, sizeof(handle_print_menu.line),MENU_CONTROL_X_ROW_DATA, MENU_CONTROL_COLUMN_DATA);
 				int n_chars;
-				n_chars = snprintf(handle_print_menu.line, sizeof(handle_print_menu.line), "X ALARM CONTROL: %s  Xamp[um]:%-6u last alarm Xamp[um]:%-6u #alarm:%-5u"
+				n_chars = snprintf(handle_print_menu.line, sizeof(handle_print_menu.line), "X ALARM CONTROL: %s  Xamp[um]:%-6u last alarm Xamp[um]:%-6u #alarm:%-5u MAX Xamp[um]:%-6u"
 						,alarm_is_active ? "*** ALARM ACTIVE ***": "  alarm not active  "
 						,p_control->amplitude_um_X
 						,p_control->amplitude_last_alarm_um_X
 						,p_control->alarm_num_X
+						,main_info.cur_max_ampX
 						);
 				if (n_chars > sizeof(handle_print_menu.line))
 				{
@@ -708,11 +781,12 @@ void print_info(void)
 					alarm_is_active = 0;
 				}
 				vANSI_goto_line_column(handle_print_menu.line, sizeof(handle_print_menu.line),MENU_CONTROL_Y_ROW_DATA, MENU_CONTROL_COLUMN_DATA);
-				n_chars = snprintf(handle_print_menu.line, sizeof(handle_print_menu.line), "Y ALARM CONTROL: %s  Yamp[um]:%-6u last alarm Yamp[um]:%-6u #alarm:%-5u"
+				n_chars = snprintf(handle_print_menu.line, sizeof(handle_print_menu.line), "Y ALARM CONTROL: %s  Yamp[um]:%-6u last alarm Yamp[um]:%-6u #alarm:%-5u MAX Yamp[um]:%-6u"
 						,alarm_is_active ? "*** ALARM ACTIVE ***": "  alarm not active  "
 						,p_control->amplitude_um_Y
 						,p_control->amplitude_last_alarm_um_Y
 						,p_control->alarm_num_Y
+						,main_info.cur_max_ampY
 						);
 				if (n_chars > sizeof(handle_print_menu.line))
 				{
@@ -727,7 +801,7 @@ void print_info(void)
 				tx_uart_conststr(def_ANSI_Reversed);
 				tx_uart_conststr(def_ANSI_Yellow);
 				vANSI_goto_line_column(handle_print_menu.line, sizeof(handle_print_menu.line),MENU_CONTROL_HELP, 1);
-				tx_uart_conststr("HELP:   R refresh    W write new data");
+				tx_uart_conststr("HELP:   R refresh    W write new data     C clear stats");
 				tx_uart_conststr(def_ANSI_ClearEndOfLine);
 
 			}
@@ -792,9 +866,71 @@ void print_info(void)
 #endif
 }
 
+static int uint32_tcmp(const void *pa, const void *pb)
+{
+	uint32_t ia = *(int32_t*)pa;
+	uint32_t ib = *(int32_t*)pb;
+	if (ia == ib)
+	{
+		return 0;
+	}
+	if (ia > ib)
+	{
+		return 1;
+	}
+	return -1;
+}
 
 void do_control(void)
 {
+	uint64_t now_ms = get_tick_count();
+#if 0
+	if (now_ms - main_info.last_reset_minmaxacc_ms >= 1000)
+	{
+		main_info.last_reset_minmaxacc_ms = now_ms;
+		reset_accelerometer_stats();
+	}
+	main_info.cur_delta_maxmin = now_ms - main_info.last_reset_minmaxacc_ms;
+#endif
+
+#ifdef def_enable_correlation
+	{
+		type_correlation * p = &main_info.correlation;
+		if (now_ms != p->old_tick)
+		{
+			p->old_tick = now_ms;
+			p->xvalues[p->idx] = main_info.accelerometer.acc_mms2[0];
+			p->yvalues[p->idx] = main_info.accelerometer.acc_mms2[1];
+			if (++p->idx >= def_max_values_correlation)
+			{
+				p->idx = 0;
+				unsigned int i;
+				int32_t xm = 0;
+				int32_t ym = 0;
+				for (i = 0; i < def_max_values_correlation; i++)
+				{
+					xm += p->xvalues[i];
+					ym += p->yvalues[i];
+				}
+				xm /= def_max_values_correlation;
+				ym /= def_max_values_correlation;
+				int64_t sxy = 0;
+				int64_t sx2 = 0;
+				int64_t sy2 = 0;
+				for (i = 0; i < def_max_values_correlation; i++)
+				{
+					p->xvalues[i] -= xm;
+					p->yvalues[i] -= ym;
+					sxy += (int64_t)p->xvalues[i] * (int64_t)p->yvalues[i];
+					sx2 += (int64_t)p->xvalues[i] * (int64_t)p->xvalues[i];
+					sy2 += (int64_t)p->yvalues[i] * (int64_t)p->yvalues[i];
+				}
+				p->correlation = ((sxy * 1000) / sx2) * ((sxy * 1000) / sy2);
+			}
+		}
+	}
+#endif
+
 	type_struct_control *p_control = &main_info.control;
 	type_handle_rom_entry *p_rom_table = &p_control->rom_entry;
 	main_info.control.dipsw1 = read_dipswitch1();
@@ -818,7 +954,7 @@ void do_control(void)
 		{
 			p_control->alarm_active = 0;
 			p_control->relais = 0;
-			if (p_rom_table->is_valid)
+			if (p_rom_table->is_valid && ui_acc_stats_valid())
 			{
 				p_control->status = enum_status_control_check_speed_and_amplitude;
 				p_control->pause_validate_alarm_elapsed_ms = 0;
@@ -831,31 +967,52 @@ void do_control(void)
 			p_control->alarm_active = 0;
 			p_control->relais = 0;
 			uint32_t now_alarm = 0;
-			uint32_t rpm = main_info.encoder.freq_Hz * 60 ;
-			if (rpm >= p_rom_table->value.threshold_rpm)
+			uint32_t w_squared = 0;
+			uint32_t rpm = (main_info.encoder.freq_mHz * 60) / 1000 ;
 			{
 				// 804/256 approximates pi
-				uint32_t w = (2 * 804 * main_info.encoder.freq_Hz) >> 8;
-				uint32_t w_squared = (w * w);
-
-				p_control->amplitude_um_X = (abs(main_info.accelerometer.acc_mms2[0]) * 1000) / (w_squared);
-				if (p_control->amplitude_um_X > p_rom_table->value.threshold_amplitude_X_um)
+				uint64_t w = (2 * 804 * main_info.encoder.freq_mHz);
+				w_squared = ((w * w) / (1000 * 1000)) >> 16;
+			}
+			uint64_t u64 = 0;
+			// u64 = abs(main_info.accelerometer.acc_mms2[0]);
+			u64 = abs(main_info.accelerometer.max_acc_mms2[0] - main_info.accelerometer.min_acc_mms2[0]);
+			main_info.differentialXmms2 = u64;
+			p_control->amplitude_um_X = (u64 * 1000) / (w_squared);
+			if (p_control->amplitude_um_X > p_rom_table->value.threshold_amplitude_X_um)
+			{
+				if (rpm >= p_rom_table->value.threshold_rpm_X)
 				{
 					now_alarm |= 1;
 				}
-				p_control->amplitude_um_Y = (abs(main_info.accelerometer.acc_mms2[1]) * 1000) / (w_squared);
-				if (p_control->amplitude_um_Y > p_rom_table->value.threshold_amplitude_Y_um)
+			}
+			u64 = abs(main_info.accelerometer.max_acc_mms2[1] - main_info.accelerometer.min_acc_mms2[1]);
+			main_info.differentialYmms2 = u64;
+			p_control->amplitude_um_Y = (u64 * 1000) / (w_squared);
+			if (p_control->amplitude_um_Y > p_rom_table->value.threshold_amplitude_Y_um)
+			{
+				if (rpm >= p_rom_table->value.threshold_rpm)
 				{
 					now_alarm |= 2;
 				}
 			}
+			//uint64_t now = get_tick_count();
+
+			uint32_t idx_hist_amplitude = p_control->idx_hist_amplitude;
+			p_control->hist_amplitude_um_X[idx_hist_amplitude] = p_control->amplitude_um_X;
+			p_control->hist_amplitude_um_Y[idx_hist_amplitude] = p_control->amplitude_um_Y;
+
+			qsort(&p_control->hist_amplitude_um_X[0], def_length_hist_amp, sizeof(p_control->hist_amplitude_um_X[0]), uint32_tcmp);
+			qsort(&p_control->hist_amplitude_um_Y[0], def_length_hist_amp, sizeof(p_control->hist_amplitude_um_Y[0]), uint32_tcmp);
+			main_info.cur_max_ampX = p_control->hist_amplitude_um_X[def_length_hist_amp - 1];
+			main_info.cur_max_ampY = p_control->hist_amplitude_um_Y[def_length_hist_amp - 1];
+
 			if (now_alarm)
 			{
-				uint64_t now_ms = get_tick_count();
 				int32_t delta_ms = now_ms - p_control->base_validate_alarm_ms;
 				p_control->base_validate_alarm_ms = now_ms;
 				p_control->pause_validate_alarm_elapsed_ms += delta_ms;
-				if (p_control->pause_validate_alarm_elapsed_ms >= 300)
+				if (p_control->pause_validate_alarm_elapsed_ms >= 0)
 				{
 					if (now_alarm & 1)
 					{
@@ -892,7 +1049,6 @@ void do_control(void)
 		{
 			p_control->alarm_active = 1;
 			p_control->relais = 1;
-			uint64_t now_ms = get_tick_count();
 			int32_t delta_ms = now_ms - p_control->base_alarm_ms;
 			p_control->base_alarm_ms = now_ms;
 			p_control->pause_alarm_elapsed_ms += delta_ms;
@@ -908,7 +1064,6 @@ void do_control(void)
 		{
 			p_control->alarm_active = 1;
 			p_control->relais = 0;
-			uint64_t now_ms = get_tick_count();
 			int32_t delta_ms = now_ms - p_control->base_alarm_ms;
 			p_control->base_alarm_ms = now_ms;
 			p_control->pause_alarm_elapsed_ms += delta_ms;

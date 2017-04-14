@@ -11,11 +11,14 @@
 void encoder_module_init(void);
 void encoder_module_register_callbacks(void);
 void encoder_module_handle_run(void);
+void reset_encoder_stats(void);
+
 typedef struct _type_encoder_main_info
 {
 	uint32_t num_err_too_high_input_freq;
 	uint32_t num_err_get_encoder;
 	uint32_t freq_Hz;
+	uint32_t freq_mHz;
 	uint32_t max_freq_Hz;
 	uint32_t min_freq_Hz;
 	uint32_t valid;
