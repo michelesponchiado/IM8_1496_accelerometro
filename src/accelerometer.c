@@ -143,8 +143,9 @@ void accelerometer_module_init(void)
 	init_stats(&acc_io.statsY);
 }
 
-void accelerometer_module_handle_run(void)
+unsigned int accelerometer_module_handle_run(void)
 {
+	unsigned int is_error = 0;
 	switch(acc_io.status)
 	{
 		case enum_acc_io_status_init:
@@ -164,9 +165,10 @@ void accelerometer_module_handle_run(void)
 		case enum_acc_io_status_latch:
 		{
 			uint64_t now = get_tick_count();
+			// read max once per 1ms
 			if (acc_io.last_tick_latch_ms == now)
 			{
-				return;
+				break;
 			}
 			acc_io.last_tick_latch_ms = now;
 
@@ -182,6 +184,7 @@ void accelerometer_module_handle_run(void)
 			acc_io.retcodeTransfer = do_i2c_transfer( &acc_io.xfer);
 			if (acc_io.retcodeTransfer)
 			{
+				is_error = 1;
 				acc_io.numerr_send1++;
 				acc_io.status = enum_acc_io_status_init;
 				break;
@@ -201,6 +204,7 @@ void accelerometer_module_handle_run(void)
 			acc_io.retcodeTransfer =  do_i2c_transfer( &acc_io.xfer);
 			if (acc_io.retcodeTransfer)
 			{
+				is_error = 1;
 				acc_io.numerr_send2++;
 				acc_io.status = enum_acc_io_status_init;
 				break;
@@ -233,6 +237,7 @@ void accelerometer_module_handle_run(void)
 			break;
 		}
 	}
+	return is_error;
 }
 
 #if 0

@@ -32,6 +32,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "board.h"
+#include "system_tick.h"
 #include "i2c.h"
 
 /*****************************************************************************
@@ -462,12 +463,45 @@ int main(void)
 #endif
 
 
+static uint32_t numerr_i2c_write;
+static uint32_t numerr_i2c_read;
+static uint32_t iserr_i2c_read;
+static uint64_t base_i2c_ms;
+
+void init_timeout_i2c(void)
+{
+	base_i2c_ms = get_tick_count();
+	iserr_i2c_read = 0;
+}
+
+void signal_error_i2c(void)
+{
+	iserr_i2c_read = 1;
+}
+
+unsigned int is_timeout_i2c(void)
+{
+	if (iserr_i2c_read || (get_tick_count() > base_i2c_ms + 1000))
+	{
+		numerr_i2c_write++;
+		return 1;
+	}
+	return 0;
+}
+
 void init_i2c(void)
 {
+	Chip_I2CM_DeInit(I2C0);
 	i2c_app_init(I2C0, SPEED_400KHZ);
 }
 
 int do_i2c_transfer(I2C_XFER_T *pxfer)
 {
-	return Chip_I2C_MasterTransfer(i2cDev, pxfer);
+	numerr_i2c_read = numerr_i2c_write;
+	int ret = Chip_I2C_MasterTransfer(i2cDev, pxfer);
+	if (numerr_i2c_write != numerr_i2c_read)
+	{
+		ret = 1;
+	}
+	return ret;
 }

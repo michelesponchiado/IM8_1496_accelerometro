@@ -94,7 +94,7 @@ unsigned int is_OK_get_rom_table_entry(uint8_t idx, type_rom_table_entry *p_dst)
 	}
 	if (is_OK)
 	{
-		uint32_t get_crc = crc32((const void *)&p_dst->threshold_rpm, sizeof(type_rom_table_entry) - sizeof(p_dst->crc32));
+		uint32_t get_crc = crc32((const void *)(((uint8_t*)&p_dst->crc32) + sizeof(p_dst->crc32)), sizeof(type_rom_table_entry) - sizeof(p_dst->crc32));
 		if (get_crc != p_dst->crc32)
 		{
 			is_OK = 0;
@@ -112,7 +112,7 @@ unsigned int is_OK_write_rom_table_entry(uint8_t idx, type_rom_table_entry *p_sr
 	unsigned int is_OK = 1;
 	uint32_t offset = idx;
 	offset *= sizeof(type_rom_table_entry);
-	uint32_t set_crc = crc32((const void *)&p_src->threshold_rpm, sizeof(type_rom_table_entry) - sizeof(p_src->crc32));
+	uint32_t set_crc = crc32((const void *)(((uint8_t*)&p_src->crc32) + sizeof(p_src->crc32)), sizeof(type_rom_table_entry) - sizeof(p_src->crc32));
 	p_src->crc32 = set_crc;
 	if (!is_OK_write_EEPROM_24LC512_array(offset, (uint8_t*)p_src, sizeof(type_rom_table_entry)))
 	{
@@ -125,8 +125,9 @@ void test_table(void)
 {
 	type_rom_table_entry test_entry_src;
 	test_entry_src.threshold_amplitude_X_um = 150;
-	test_entry_src.threshold_amplitude_Y_um = 150;
-	test_entry_src.threshold_rpm = 107;
+	test_entry_src.threshold_amplitude_Y_um = 151;
+	test_entry_src.threshold_rpm_X = 107;
+	test_entry_src.threshold_rpm_Y = 108;
 	unsigned int is_OK = 1;
 	unsigned int idx_table;
 	for (idx_table = 0; idx_table < 3; idx_table++)

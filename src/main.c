@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include "uart.h"
 #include "i2c.h"
 #include "dipswitches.h"
@@ -19,7 +20,8 @@
 #include "table.h"
 #include "led.h"
 #include "relais.h"
-#include <ctype.h>
+#include "crc3bit.h"
+#include "alarms.h"
 
 /*
  * condizione normale:--> PRIORITA' 2
@@ -42,7 +44,15 @@
  *
  */
 
-#define DEF_FIRMWARE_VERSION_STRING "IMESA 1496 accelerometer app: 0.1 "__DATE__" "__TIME__
+
+// versione 0.2
+// - lampeggio LED come da specifiche riceute da Przemek email 19 aprile 2017
+// - cambiato formato tabella EEPROM che adesso include: speed X, speed Y, ampiezza X ed ampiezza Y
+// - DIP1: i primi 5 dip switch selezionano l'indice tabella, da 1 a 31, gli ultimi 3 impostano il CRC
+//   INDICE: 1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31
+//   CRC   : 3  6  5  7  4  1  2  5  6   3  0  2  1  4  7  1  2  7  4  6  5  0  3  4  7  2  1  3  0  5  6
+//
+#define DEF_FIRMWARE_VERSION_STRING "IMESA 1496 accelerometer app: 0.2 "__DATE__" "__TIME__
 
 //using internal oscillator
 const uint32_t OscRateIn = 0;
@@ -113,6 +123,7 @@ void Board_SetupMuxing(void)
 
 typedef struct _type_handle_rom_entry
 {
+	unsigned int is_index_valid;
 	unsigned int is_valid;
 	uint8_t idx;
 	type_rom_table_entry value;
@@ -132,12 +143,22 @@ typedef enum
 
 #define def_num_shift_length_hist_amp 8
 #define def_length_hist_amp (1 << def_num_shift_length_hist_amp)
+
+#define numbit_dipsw1_crc 3
+#define mask_dipsw1_crc (0xE0)
+#define num_shiftright_dipsw1_crc 5
+
+#define mask_dipsw1_value (0x1f)
+#define num_shiftright_dipsw1_value 0
+
 typedef struct _type_struct_control
 {
 	enum_status_control status;
 	unsigned int enabled;
 	type_handle_rom_entry rom_entry;
 	uint8_t dipsw1;
+	uint32_t table_entry_index_value;
+	uint32_t table_entry_index_crc;
 	uint32_t amplitude_um_X;
 	uint32_t amplitude_um_Y;
 	uint32_t idx_hist_amplitude;
@@ -250,6 +271,7 @@ typedef struct _type_handle_print_menu
 	enum_print_menu menu;
 	type_uptime uptime;
 	char line[129];
+	unsigned int log_mode;
 
 }type_handle_print_menu;
 static type_handle_print_menu handle_print_menu;
@@ -289,6 +311,19 @@ typedef enum
 #define MENU_ENCODER_UPTIME_COL 1
 #define MENU_CONTROL_COLUMN_DATA 1
 
+void check_rx_log_mode(void)
+{
+	uint8_t c = 0;
+	unsigned int nrx = rx_uart(&c, 1);
+	if (nrx)
+	{
+		handle_print_menu.log_mode = 0;
+		tx_uart_conststr("\r\n\r\n************************************************\r\n");
+		tx_uart_conststr(def_ANSI_Home);
+		tx_uart_conststr(def_ANSI_reset);
+	}
+}
+
 void check_rx_chars(void)
 {
 	uint8_t c = 0;
@@ -305,6 +340,11 @@ void check_rx_chars(void)
 			reset_encoder_stats();
 			//reset_accelerometer_stats();
 		}
+		else if (c == 'L')
+		{
+			handle_print_menu.log_mode = 1;
+			tx_uart_conststr("\r\n\r\n============================================\r\n");
+		}
 		else if (c == 'W')
 		{
 			handle_print_menu.status = enum_print_status_idle;
@@ -318,10 +358,11 @@ void check_rx_chars(void)
 
 			vANSI_goto_line_column(handle_print_menu.line, sizeof(handle_print_menu.line),1, 1);
 			int n_chars;
-			n_chars = snprintf(handle_print_menu.line, sizeof(handle_print_menu.line), "ROM TABLE index:%-3u (%-12s)   speed[rpm]:%-4u   Xamp[um]:%-6u   Yamp[um]:%-6u"
+			n_chars = snprintf(handle_print_menu.line, sizeof(handle_print_menu.line), "ROM TABLE index:%-3u (%-12s)   speed[rpm]:%-4u   speed[rpm]:%-4u   Xamp[um]:%-6u   Yamp[um]:%-6u"
 					,p->idx
 					,p->is_valid ? "OK VALID": "**INVALID**"
-					,p->value.threshold_rpm
+					,p->value.threshold_rpm_X
+					,p->value.threshold_rpm_Y
 					,p->value.threshold_amplitude_X_um
 					,p->value.threshold_amplitude_Y_um
 					);
@@ -343,7 +384,7 @@ void check_rx_chars(void)
 			tx_uart_conststr(def_ANSI_ClearEndOfLine);
 
 			vANSI_goto_line_column(handle_print_menu.line, sizeof(handle_print_menu.line), 3, 1);
-			n_chars = snprintf(handle_print_menu.line, sizeof(handle_print_menu.line), "Speed[rpm] ");
+			n_chars = snprintf(handle_print_menu.line, sizeof(handle_print_menu.line), "SpeedX[rpm] ");
 			if (n_chars > sizeof(handle_print_menu.line))
 			{
 				n_chars = sizeof(handle_print_menu.line);
@@ -356,7 +397,8 @@ void check_rx_chars(void)
 			unsigned int is_abort = 0;
 			char c_my_str[128];
 			unsigned int idx_char = 0;
-			unsigned int rpm = 0;
+			unsigned int rpmX = 0;
+			unsigned int rpmY = 0;
 			long th_um[2];
 			memset(th_um, 0, sizeof(th_um));
 			while(is_input && ! is_abort)
@@ -377,30 +419,55 @@ void check_rx_chars(void)
 							{
 								case 0:
 								{
-									rpm = atoi(c_my_str);
+									rpmX = atoi(c_my_str);
 									idx_char = 0;
 									break;
 								}
 								case 1:
 								{
-									th_um[0] = atol(c_my_str);
+									rpmY = atoi(c_my_str);
 									idx_char = 0;
 									break;
 								}
 								case 2:
+								{
+									th_um[0] = atol(c_my_str);
+									idx_char = 0;
+									break;
+								}
+								case 3:
 								{
 									th_um[1] = atol(c_my_str);
 									idx_char = 0;
 									break;
 								}
 							}
-							if (++num_values >= 3)
+							if (++num_values >= 4)
 							{
 								is_input = 0;
 							}
 							vANSI_goto_line_column(handle_print_menu.line, sizeof(handle_print_menu.line), 3 + num_values, 1);
-							int n_chars = snprintf(handle_print_menu.line, sizeof(handle_print_menu.line), "%s",
-									(num_values == 1)? "Xth[um] " : "Yth[um] ");
+							char *pc = "";
+							switch(num_values)
+							{
+								case 1:
+								default:
+								{
+									pc = "SpeedY[rpm] ";
+									break;
+								}
+								case 2:
+								{
+									pc = "Xth[um] ";
+									break;
+								}
+								case 3:
+								{
+									pc = "Yth[um] ";
+									break;
+								}
+							}
+							int n_chars = snprintf(handle_print_menu.line, sizeof(handle_print_menu.line), "%s", pc);
 							if (n_chars > sizeof(handle_print_menu.line))
 							{
 								n_chars = sizeof(handle_print_menu.line);
@@ -424,8 +491,8 @@ void check_rx_chars(void)
 			}
 			if (!is_abort)
 			{
-				vANSI_goto_line_column(handle_print_menu.line, sizeof(handle_print_menu.line), 6, 1);
-				n_chars = snprintf(handle_print_menu.line, sizeof(handle_print_menu.line), "Speed[rpm] = %u, Xth[um]=%lu, Yth[um]=%lu: CONFIRM? (y/n)", rpm, th_um[0], th_um[1]);
+				vANSI_goto_line_column(handle_print_menu.line, sizeof(handle_print_menu.line), 7, 1);
+				n_chars = snprintf(handle_print_menu.line, sizeof(handle_print_menu.line), "SpeedX[rpm] = %u, SpeedY[rpm] = %u, Xth[um]=%lu, Yth[um]=%lu: CONFIRM? (y/n)", rpmX, rpmY, th_um[0], th_um[1]);
 				if (n_chars > sizeof(handle_print_menu.line))
 				{
 					n_chars = sizeof(handle_print_menu.line);
@@ -461,7 +528,7 @@ void check_rx_chars(void)
 				{
 					tx_uart_conststr(def_ANSI_Background_Red);
 					tx_uart_conststr(def_ANSI_White);
-					vANSI_goto_line_column(handle_print_menu.line, sizeof(handle_print_menu.line), 7, 1);
+					vANSI_goto_line_column(handle_print_menu.line, sizeof(handle_print_menu.line), 8, 1);
 					n_chars = snprintf(handle_print_menu.line, sizeof(handle_print_menu.line), "*** ABORTED !!!***");
 					if (n_chars > sizeof(handle_print_menu.line))
 					{
@@ -474,10 +541,12 @@ void check_rx_chars(void)
 				else
 				{
 					type_rom_table_entry e;
-					e.threshold_rpm = rpm;
+					e.threshold_rpm_X = rpmX;
+					e.threshold_rpm_Y = rpmY;
 					e.threshold_amplitude_X_um= th_um[0];
 					e.threshold_amplitude_Y_um= th_um[1];
-					unsigned int is_OK = is_OK_write_rom_table_entry(main_info.control.dipsw1, &e);
+
+					unsigned int is_OK = is_OK_write_rom_table_entry(main_info.control.table_entry_index_value, &e);
 					if (!is_OK)
 					{
 						tx_uart_conststr(def_ANSI_Background_Red);
@@ -488,7 +557,7 @@ void check_rx_chars(void)
 						tx_uart_conststr(def_ANSI_Background_Green);
 						tx_uart_conststr(def_ANSI_Black);
 					}
-					vANSI_goto_line_column(handle_print_menu.line, sizeof(handle_print_menu.line), 7, 1);
+					vANSI_goto_line_column(handle_print_menu.line, sizeof(handle_print_menu.line), 8, 1);
 					n_chars = snprintf(handle_print_menu.line, sizeof(handle_print_menu.line), "%s", is_OK ? "       DATA WRITTEN OK": "*******ERROR WRITING DATA");
 					if (n_chars > sizeof(handle_print_menu.line))
 					{
@@ -496,7 +565,7 @@ void check_rx_chars(void)
 					}
 					tx_uart((uint8_t*)handle_print_menu.line, n_chars);
 					tx_uart_conststr(def_ANSI_ClearEndOfLine);
-					delay_ms(3000);
+					delay_ms(1500);
 					main_info.control.rom_entry.is_valid = 0;
 				}
 
@@ -509,27 +578,41 @@ void check_rx_chars(void)
 
 void print_info(void)
 {
-	check_rx_chars();
 
 	uint64_t now_ms = get_tick_count();
 	int32_t delta_ms = now_ms - main_info.prev_update_freq_ms;
-	if (delta_ms < 100)
+	if (handle_print_menu.log_mode)
+	{
+		if (delta_ms < 100)
+		{
+			return;
+		}
+	}
+	else
+	{
+		if (delta_ms < 300)
+		{
+			return;
+		}
+	}
+/*	if (!ui_acc_stats_valid())
 	{
 		return;
-	}
-	if (!ui_acc_stats_valid())
-	{
-		return;
-	}
+	}*/
 
 	{
 		main_info.green_led = !main_info.green_led;
-		set_led(enum_LED_green, main_info.green_led);
+		//set_led(enum_LED_green, main_info.green_led);
 	}
 	main_info.prev_update_freq_ms = now_ms;
 	main_info.uptime_ms = now_ms;
-#if 0
+	if (handle_print_menu.log_mode)
 	{
+		check_rx_log_mode();
+		if (!handle_print_menu.log_mode)
+		{
+			return;
+		}
 		type_struct_control *p_control = &main_info.control;
 
 		uint32_t rpm = (main_info.encoder.freq_mHz * 60) / 1000 ;
@@ -544,7 +627,9 @@ void print_info(void)
 		tx_uart((uint8_t*)handle_print_menu.line, n_chars);
 		return;
 	}
-#endif
+
+	check_rx_chars();
+
 
 	switch(handle_print_menu.status)
 	{
@@ -692,7 +777,7 @@ void print_info(void)
 				tx_uart((uint8_t*)handle_print_menu.line, n_chars);
 				tx_uart_conststr(def_ANSI_ClearEndOfLine);
 				vANSI_goto_line_column(handle_print_menu.line, sizeof(handle_print_menu.line),MENU_DIPSW_ROW_DATA, MENU_DIPSW_COLUMN_DATA2);
-				n_chars = snprintf(handle_print_menu.line, sizeof(handle_print_menu.line), "%c%c%c%c%c%c%c%c --> %u"
+				n_chars = snprintf(handle_print_menu.line, sizeof(handle_print_menu.line), "%c%c%c%c%c%c%c%c"
 						,(dipsw1 & 0x1) ? '1' : '0'
 						,(dipsw1 & 0x2) ? '1' : '0'
 						,(dipsw1 & 0x4) ? '1' : '0'
@@ -701,7 +786,6 @@ void print_info(void)
 						,(dipsw1 & 0x20) ? '1' : '0'
 						,(dipsw1 & 0x40) ? '1' : '0'
 						,(dipsw1 & 0x80) ? '1' : '0'
-						,(uint32_t)dipsw1
 						);
 				if (n_chars > sizeof(handle_print_menu.line))
 				{
@@ -719,14 +803,38 @@ void print_info(void)
 
 				vANSI_goto_line_column(handle_print_menu.line, sizeof(handle_print_menu.line),MENU_ROM_ROW_DATA, MENU_ROM_COLUMN_DATA);
 				int n_chars;
-				n_chars = snprintf(handle_print_menu.line, sizeof(handle_print_menu.line), "ROM TABLE index:%-3u (%-12s)   speed[rpm]:%-4u   Xamp[um]:%-6u   Yamp[um]:%-6u"
-						,p->idx
-						,p->is_valid ? "OK VALID": "**INVALID**"
-						,p->value.threshold_rpm
-						,p->value.threshold_amplitude_X_um
-						,p->value.threshold_amplitude_Y_um
-						//,main_info.correlation.correlation
+				if (!p->is_index_valid)
+				{
+					if (main_info.control.table_entry_index_value == 0)
+					{
+						n_chars = snprintf(handle_print_menu.line, sizeof(handle_print_menu.line), "%s", "ERROR: INVALID INDEX 0 SELECTED");
+					}
+					else
+					{
+						uint32_t ok_crc = calc_crc_3bit_of_6bit_number( main_info.control.table_entry_index_value);
+						n_chars = snprintf(handle_print_menu.line, sizeof(handle_print_menu.line), "ERROR: INDEX %u SELECTED, DIP 678: %c%c%c (WRONG! MUST BE %c%c%c)"
+								, main_info.control.table_entry_index_value
+								, (main_info.control.table_entry_index_crc & 1) ? '1' : '0'
+								, (main_info.control.table_entry_index_crc & 2) ? '1' : '0'
+								, (main_info.control.table_entry_index_crc & 4) ? '1' : '0'
+								, (ok_crc & 1) ? '1' : '0'
+								, (ok_crc & 2) ? '1' : '0'
+								, (ok_crc & 4) ? '1' : '0'
 						);
+					}
+				}
+				else
+				{
+					n_chars = snprintf(handle_print_menu.line, sizeof(handle_print_menu.line), "ROM TABLE index:%-3u (%-12s)   speedX[rpm]:%-4u   speedY[rpm]:%-4u   Xamp[um]:%-6u   Yamp[um]:%-6u"
+							,p->idx
+							,p->is_valid ? "OK VALID": "**INVALID**"
+							,p->value.threshold_rpm_X
+							,p->value.threshold_rpm_Y
+							,p->value.threshold_amplitude_X_um
+							,p->value.threshold_amplitude_Y_um
+							//,main_info.correlation.correlation
+							);
+				}
 				if (n_chars > sizeof(handle_print_menu.line))
 				{
 					n_chars = sizeof(handle_print_menu.line);
@@ -801,7 +909,7 @@ void print_info(void)
 				tx_uart_conststr(def_ANSI_Reversed);
 				tx_uart_conststr(def_ANSI_Yellow);
 				vANSI_goto_line_column(handle_print_menu.line, sizeof(handle_print_menu.line),MENU_CONTROL_HELP, 1);
-				tx_uart_conststr("HELP:   R refresh    W write new data     C clear stats");
+				tx_uart_conststr("HELP:   R refresh    W write new data     C clear stats     L toggle log");
 				tx_uart_conststr(def_ANSI_ClearEndOfLine);
 
 			}
@@ -933,20 +1041,39 @@ void do_control(void)
 
 	type_struct_control *p_control = &main_info.control;
 	type_handle_rom_entry *p_rom_table = &p_control->rom_entry;
-	main_info.control.dipsw1 = read_dipswitch1();
-	if (!p_rom_table->is_valid)
 	{
-		p_rom_table->is_valid = is_OK_get_rom_table_entry(p_rom_table->idx, &p_rom_table->value);
+		main_info.control.dipsw1 = read_dipswitch1();
+		main_info.control.table_entry_index_value = (main_info.control.dipsw1 & mask_dipsw1_value) >> num_shiftright_dipsw1_value;
+		main_info.control.table_entry_index_crc = (main_info.control.dipsw1 & mask_dipsw1_crc) >> num_shiftright_dipsw1_crc;
+		if ((main_info.control.table_entry_index_value == 0) || !is_OK_crc_3bit_of_6bit_number(main_info.control.table_entry_index_value, main_info.control.table_entry_index_crc))
+		{
+			accum_current_alarm(enum_alarm_invalid_dipsw);
+			p_rom_table->is_index_valid = 0;
+		}
+		else
+		{
+			p_rom_table->is_index_valid = 1;
+		}
 	}
-	if (p_rom_table->idx != main_info.control.dipsw1)
+	if (p_rom_table->is_index_valid)
 	{
-		p_rom_table->idx = main_info.control.dipsw1;
-		p_rom_table->is_valid = is_OK_get_rom_table_entry(p_rom_table->idx, &p_rom_table->value);
+		if (!p_rom_table->is_valid)
+		{
+			p_rom_table->is_valid = is_OK_get_rom_table_entry(p_rom_table->idx, &p_rom_table->value);
+		}
+		if (p_rom_table->idx != main_info.control.table_entry_index_value)
+		{
+			p_rom_table->idx = main_info.control.table_entry_index_value;
+			p_rom_table->is_valid = is_OK_get_rom_table_entry(p_rom_table->idx, &p_rom_table->value);
+		}
 	}
-	if (!p_rom_table->is_valid)
+
+	if (!p_rom_table->is_valid || !p_rom_table->is_index_valid)
 	{
+		accum_current_alarm(enum_alarm_invalid_dipsw);
 		p_control->status = enum_status_control_idle;
 	}
+
 	switch(p_control->status)
 	{
 		case enum_status_control_idle:
@@ -991,7 +1118,7 @@ void do_control(void)
 			p_control->amplitude_um_Y = (u64 * 1000) / (w_squared);
 			if (p_control->amplitude_um_Y > p_rom_table->value.threshold_amplitude_Y_um)
 			{
-				if (rpm >= p_rom_table->value.threshold_rpm)
+				if (rpm >= p_rom_table->value.threshold_rpm_Y)
 				{
 					now_alarm |= 2;
 				}
@@ -1012,8 +1139,32 @@ void do_control(void)
 				int32_t delta_ms = now_ms - p_control->base_validate_alarm_ms;
 				p_control->base_validate_alarm_ms = now_ms;
 				p_control->pause_validate_alarm_elapsed_ms += delta_ms;
+				// no filter on the alarm !
 				if (p_control->pause_validate_alarm_elapsed_ms >= 0)
 				{
+					switch (now_alarm & 3)
+					{
+						case 3:
+						{
+							accum_current_alarm(enum_alarm_balance_XY);
+							break;
+						}
+						case 2:
+						{
+							accum_current_alarm(enum_alarm_balance_Y);
+							break;
+						}
+						case 1:
+						{
+							accum_current_alarm(enum_alarm_balance_X);
+							break;
+						}
+						default:
+						{
+							break;
+						}
+					}
+
 					if (now_alarm & 1)
 					{
 						p_control->amplitude_last_alarm_um_X = p_control->amplitude_um_X;
@@ -1039,7 +1190,7 @@ void do_control(void)
 		{
 			p_control->alarm_active = 1;
 			p_control->relais = 1;
-			set_led(enum_LED_red, 1);
+			//set_led(enum_LED_red, 1);
 			p_control->pause_alarm_elapsed_ms = 0;
 			p_control->base_alarm_ms = get_tick_count();
 			p_control->status = enum_status_control_wait_signal_alarm;
@@ -1052,7 +1203,7 @@ void do_control(void)
 			int32_t delta_ms = now_ms - p_control->base_alarm_ms;
 			p_control->base_alarm_ms = now_ms;
 			p_control->pause_alarm_elapsed_ms += delta_ms;
-			if (p_control->pause_alarm_elapsed_ms >= 500)
+			if (p_control->pause_alarm_elapsed_ms >= 10)
 			{
 				p_control->pause_alarm_elapsed_ms = 0;
 				p_control->base_alarm_ms = get_tick_count();
@@ -1067,14 +1218,13 @@ void do_control(void)
 			int32_t delta_ms = now_ms - p_control->base_alarm_ms;
 			p_control->base_alarm_ms = now_ms;
 			p_control->pause_alarm_elapsed_ms += delta_ms;
-			if (p_control->pause_alarm_elapsed_ms >= 2000)
+			if (p_control->pause_alarm_elapsed_ms >= 10)
 			{
 				p_control->status = enum_status_control_check_speed_and_amplitude;
 			}
 			break;
 		}
 	}
-	relais_set(p_control->relais);
 }
 
 
@@ -1101,6 +1251,8 @@ int main(void)
 	accelerometer_module_init();
 	system_tick_module_init();
 	relais_init();
+	module_init_alarms();
+
 
 	memset(&main_info, 0, sizeof(main_info));
 
@@ -1108,6 +1260,7 @@ int main(void)
 	encoder_module_register_callbacks();
 
 	//test_flash();
+	//test_crc3();
 
 	led_test();
 
@@ -1134,6 +1287,7 @@ int main(void)
 				}
 				case enum_run_status_init:
 				{
+					start_handle_alarms();
 					accelerometer_module_init();
 					s = enum_run_status_run;
 					// test_accelerometer();
@@ -1148,10 +1302,18 @@ int main(void)
 				}
 				case enum_run_status_run:
 				{
-					accelerometer_module_handle_run();
-					refresh_accelerometer_info(&main_info.accelerometer);
-					refresh_encoder_info(&main_info.encoder);
-					do_control();
+					reset_current_alarm();
+					{
+						if (accelerometer_module_handle_run())
+						{
+							accum_current_alarm(enum_alarm_HW);
+						}
+						refresh_accelerometer_info(&main_info.accelerometer);
+						refresh_encoder_info(&main_info.encoder);
+						do_control();
+					}
+					set_current_alarm();
+					vhandle_alarms();
 					print_info();
 					break;
 				}

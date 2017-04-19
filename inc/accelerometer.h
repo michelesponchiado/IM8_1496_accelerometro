@@ -10,7 +10,7 @@
 
 void test_accelerometer(void);
 void accelerometer_module_init(void);
-void accelerometer_module_handle_run(void);
+unsigned int accelerometer_module_handle_run(void);
 
 typedef struct _type_accelerometer_main_info
 {
