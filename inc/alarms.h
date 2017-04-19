@@ -28,5 +28,6 @@ void accum_current_alarm(enum_alarm_1496 a);
 void set_current_alarm(void);
 void vhandle_alarms(void);
 void start_handle_alarms(void);
+void init_new_alarm(enum_alarm_1496 a);
 
 #endif /* INC_ALARMS_H_ */

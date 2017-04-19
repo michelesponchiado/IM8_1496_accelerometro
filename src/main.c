@@ -45,6 +45,8 @@
  */
 
 
+// versione 0.3
+// - aggiunta gestione watch dog
 // versione 0.2
 // - lampeggio LED come da specifiche riceute da Przemek email 19 aprile 2017
 // - cambiato formato tabella EEPROM che adesso include: speed X, speed Y, ampiezza X ed ampiezza Y
@@ -52,7 +54,7 @@
 //   INDICE: 1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31
 //   CRC   : 3  6  5  7  4  1  2  5  6   3  0  2  1  4  7  1  2  7  4  6  5  0  3  4  7  2  1  3  0  5  6
 //
-#define DEF_FIRMWARE_VERSION_STRING "IMESA 1496 accelerometer app: 0.2 "__DATE__" "__TIME__
+#define DEF_FIRMWARE_VERSION_STRING "IMESA 1496 accelerometer app: 0.3 "__DATE__" "__TIME__
 
 //using internal oscillator
 const uint32_t OscRateIn = 0;
@@ -206,6 +208,7 @@ typedef struct _type_main_info
 	type_correlation correlation;
 #endif
 	uint32_t cur_delta_maxmin;
+	uint32_t from_watchdog_reset;
 
 }type_main_info;
 
@@ -340,6 +343,13 @@ void check_rx_chars(void)
 			reset_encoder_stats();
 			//reset_accelerometer_stats();
 		}
+		else if (c == 'X')
+		{
+			while(1)
+			{
+
+			}
+		}
 		else if (c == 'L')
 		{
 			handle_print_menu.log_mode = 1;
@@ -347,6 +357,7 @@ void check_rx_chars(void)
 		}
 		else if (c == 'W')
 		{
+			Chip_WWDT_Feed(LPC_WWDT);
 			handle_print_menu.status = enum_print_status_idle;
 
 			tx_uart_conststr(def_ANSI_Home);
@@ -403,6 +414,7 @@ void check_rx_chars(void)
 			memset(th_um, 0, sizeof(th_um));
 			while(is_input && ! is_abort)
 			{
+				Chip_WWDT_Feed(LPC_WWDT);
 				unsigned int nrx = rx_uart(&c, 1);
 				if (nrx)
 				{
@@ -505,6 +517,7 @@ void check_rx_chars(void)
 
 				while(is_input && ! is_abort)
 				{
+					Chip_WWDT_Feed(LPC_WWDT);
 					unsigned int nrx = rx_uart(&c, 1);
 					if (nrx)
 					{
@@ -536,7 +549,11 @@ void check_rx_chars(void)
 					}
 					tx_uart((uint8_t*)handle_print_menu.line, n_chars);
 					tx_uart_conststr(def_ANSI_ClearEndOfLine);
-					delay_ms(2000);
+					for (n_chars = 0; n_chars < 10; n_chars++)
+					{
+						Chip_WWDT_Feed(LPC_WWDT);
+						delay_ms(200);
+					}
 				}
 				else
 				{
@@ -565,7 +582,11 @@ void check_rx_chars(void)
 					}
 					tx_uart((uint8_t*)handle_print_menu.line, n_chars);
 					tx_uart_conststr(def_ANSI_ClearEndOfLine);
-					delay_ms(1500);
+					for (n_chars = 0; n_chars < 10; n_chars++)
+					{
+						Chip_WWDT_Feed(LPC_WWDT);
+						delay_ms(150);
+					}
 					main_info.control.rom_entry.is_valid = 0;
 				}
 
@@ -685,11 +706,12 @@ void print_info(void)
 				}
 
 				vANSI_goto_line_column(handle_print_menu.line, sizeof(handle_print_menu.line),MENU_ENCODER_UPTIME_ROW, MENU_ENCODER_UPTIME_COL);
-				int n_chars = snprintf(handle_print_menu.line, sizeof(handle_print_menu.line), "uptime: %uh %02umin %02us %03ums"
+				int n_chars = snprintf(handle_print_menu.line, sizeof(handle_print_menu.line), "uptime: %uh %02umin %02us %03ums %s"
 						,p->uptime_hours
 						,p->uptime_min
 						,p->uptime_s
 						,p->uptime_ms
+						,main_info.from_watchdog_reset ? "WATCHDOG!":" "
 						);
 				if (n_chars > sizeof(handle_print_menu.line))
 				{
@@ -1298,10 +1320,22 @@ int main(void)
 					void test_table(void);
 					test_table();
 #endif
+					uint32_t wd_st = Chip_WWDT_GetStatus(LPC_WWDT);
+					if (wd_st & WWDT_WDMOD_WDTOF)
+					{
+						init_new_alarm(enum_alarm_SW);
+						main_info.from_watchdog_reset = 1;
+					}
+					Chip_Clock_SetWDTClockSource(SYSCTL_WDTCLKSRC_IRC, 64);
+					Chip_WWDT_Init(LPC_WWDT);
+					Chip_WWDT_SetTimeOut(LPC_WWDT, 30000 * 2);
+					Chip_WWDT_SetOption(LPC_WWDT, WWDT_WDMOD_WDEN | WWDT_WDMOD_WDRESET);
+					Chip_WWDT_Feed(LPC_WWDT);
 					break;
 				}
 				case enum_run_status_run:
 				{
+					Chip_WWDT_Feed(LPC_WWDT);
 					reset_current_alarm();
 					{
 						if (accelerometer_module_handle_run())
@@ -1313,6 +1347,7 @@ int main(void)
 						do_control();
 					}
 					set_current_alarm();
+					Chip_WWDT_Feed(LPC_WWDT);
 					vhandle_alarms();
 					print_info();
 					break;
