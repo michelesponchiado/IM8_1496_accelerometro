@@ -44,7 +44,9 @@
  *
  */
 
-
+// 1.0
+// tabella delle soglie portata in area codice, aggiunta label
+//
 // versione 0.3
 // - aggiunta gestione watch dog
 // versione 0.2
@@ -54,7 +56,7 @@
 //   INDICE: 1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31
 //   CRC   : 3  6  5  7  4  1  2  5  6   3  0  2  1  4  7  1  2  7  4  6  5  0  3  4  7  2  1  3  0  5  6
 //
-#define DEF_FIRMWARE_VERSION_STRING "IMESA 1496 accelerometer app: 0.3 "__DATE__" "__TIME__
+#define DEF_FIRMWARE_VERSION_STRING "IMESA 1496 accelerometer app: 1.0 "__DATE__" "__TIME__
 
 //using internal oscillator
 const uint32_t OscRateIn = 0;
@@ -627,6 +629,8 @@ void print_info(void)
 	}
 	main_info.prev_update_freq_ms = now_ms;
 	main_info.uptime_ms = now_ms;
+
+#ifndef __PRODUCTION_NO_EEPROM_NO_SERIAL__
 	if (handle_print_menu.log_mode)
 	{
 		check_rx_log_mode();
@@ -648,8 +652,12 @@ void print_info(void)
 		tx_uart((uint8_t*)handle_print_menu.line, n_chars);
 		return;
 	}
+#endif
 
+#ifndef __PRODUCTION_NO_EEPROM_NO_SERIAL__
+#error compiling to eeprom+serial board!
 	check_rx_chars();
+#endif
 
 
 	switch(handle_print_menu.status)
@@ -847,7 +855,8 @@ void print_info(void)
 				}
 				else
 				{
-					n_chars = snprintf(handle_print_menu.line, sizeof(handle_print_menu.line), "ROM TABLE index:%-3u (%-12s)   speedX[rpm]:%-4u   speedY[rpm]:%-4u   Xamp[um]:%-6u   Yamp[um]:%-6u"
+					n_chars = snprintf(handle_print_menu.line, sizeof(handle_print_menu.line), "ROM TABLE %s index:%-3u (%-12s)   speedX[rpm]:%-4u   speedY[rpm]:%-4u   Xamp[um]:%-6u   Yamp[um]:%-6u"
+							,p_get_rom_table_last_found_label()
 							,p->idx
 							,p->is_valid ? "OK VALID": "**INVALID**"
 							,p->value.threshold_rpm_X

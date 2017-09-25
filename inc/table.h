@@ -20,4 +20,10 @@ typedef struct _type_rom_table
 unsigned int is_OK_get_rom_table_entry(uint8_t idx, type_rom_table_entry *p_dst);
 unsigned int is_OK_write_rom_table_entry(uint8_t idx, type_rom_table_entry *p_src);
 
+#if __PRODUCTION_NO_EEPROM_NO_SERIAL__
+#define def_table_in_code
+#endif
+
+const char *p_get_rom_table_last_found_label(void);
+
 #endif /* INC_TABLE_H_ */
