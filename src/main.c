@@ -56,7 +56,10 @@
 //   INDICE: 1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31
 //   CRC   : 3  6  5  7  4  1  2  5  6   3  0  2  1  4  7  1  2  7  4  6  5  0  3  4  7  2  1  3  0  5  6
 //
-#define DEF_FIRMWARE_VERSION_STRING "IMESA 1496 accelerometer app: 1.0 "__DATE__" "__TIME__
+
+// 1.1 aggiunti tre modelli in tabella: LM85, LM85_EM e D2W30
+//
+#define DEF_FIRMWARE_VERSION_STRING "IMESA 1496 accelerometer app: 1.1 "__DATE__" "__TIME__
 
 //using internal oscillator
 const uint32_t OscRateIn = 0;

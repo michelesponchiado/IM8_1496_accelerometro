@@ -10,7 +10,7 @@
 #include <string.h>
 #include "eeprom.h"
 #include "table.h"
-#ifdef def_table_in_code
+#if 1 || def_table_in_code
 
 	typedef struct _type_code_table
 	{
@@ -39,6 +39,26 @@
 					.threshold_rpm_Y = 150,
 					.threshold_amplitude_X_um = 9800,
 					.threshold_amplitude_Y_um = 26000,
+				}
+			},
+			{	.idx = 16,
+				.label= "LM85",
+				.entry =
+				{
+					.threshold_rpm_X = 100,
+					.threshold_rpm_Y = 150,
+					.threshold_amplitude_X_um = 14000,
+					.threshold_amplitude_Y_um = 10000,
+				}
+			},
+			{	.idx = 17,
+				.label= "LM85_EM",
+				.entry =
+				{
+					.threshold_rpm_X = 100,
+					.threshold_rpm_Y = 150,
+					.threshold_amplitude_X_um = 14000,
+					.threshold_amplitude_Y_um = 14600,
 				}
 			},
 
@@ -116,6 +136,17 @@
 					.threshold_rpm_Y = 150,
 					.threshold_amplitude_X_um = 9400,
 					.threshold_amplitude_Y_um = 20000,
+				}
+			},
+
+			{	.idx = 21,
+				.label= "D2W30",
+				.entry =
+				{
+					.threshold_rpm_X = 150,
+					.threshold_rpm_Y = 150,
+					.threshold_amplitude_X_um = 8500,
+					.threshold_amplitude_Y_um = 15500,
 				}
 			},
 	};
