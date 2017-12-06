@@ -24,6 +24,11 @@ unsigned int is_OK_write_rom_table_entry(uint8_t idx, type_rom_table_entry *p_sr
 #define def_table_in_code 1
 #endif
 
+#define def_DE_LONGO_VALUES 1
+#if def_DE_LONGO_VALUES
+	#warning def_DE_LONGO_VALUES active!
+#endif
+
 const char *p_get_rom_table_last_found_label(void);
 
 #endif /* INC_TABLE_H_ */

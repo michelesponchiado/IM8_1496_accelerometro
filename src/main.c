@@ -59,7 +59,9 @@
 
 // 1.1 aggiunti tre modelli in tabella: LM85, LM85_EM e D2W30
 //
-#define DEF_FIRMWARE_VERSION_STRING "IMESA 1496 accelerometer app: 1.1 "__DATE__" "__TIME__
+// 1.2 aggiunto modello LM85_EM2 abilitato da presenza di define "def_DE_LONGO_VALUES"
+//
+#define DEF_FIRMWARE_VERSION_STRING "IMESA 1496 accelerometer app: 1.2 "__DATE__" "__TIME__
 
 //using internal oscillator
 const uint32_t OscRateIn = 0;
@@ -1294,7 +1296,7 @@ int main(void)
 	encoder_module_register_callbacks();
 
 	//test_flash();
-	//test_crc3();
+	//isOK_test_crc3();
 
 	led_test();
 

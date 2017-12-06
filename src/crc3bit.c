@@ -69,7 +69,7 @@ uint32_t is_OK_crc_3bit_of_6bit_number(uint32_t n, uint32_t crc)
 }
 
 
-void test_crc3(void)
+unsigned int isOK_test_crc3(void)
 {
 	uint32_t isOK = 1;
 	uint32_t i;
@@ -84,4 +84,5 @@ void test_crc3(void)
 			}
 		}
 	}
+	return isOK;
 }

@@ -67,10 +67,12 @@ uint8_t read_dipswitch2(void)
 
 void test_dipswitches(void)
 {
+#if 0
 	static uint8_t u1, u2;
 	while(1)
 	{
 		u1 = read_dipswitch1();
 		u2 = read_dipswitch2();
 	}
+#endif
 }

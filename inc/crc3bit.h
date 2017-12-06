@@ -10,6 +10,6 @@
 
 uint32_t calc_crc_3bit_of_6bit_number(uint32_t n);
 uint32_t is_OK_crc_3bit_of_6bit_number(uint32_t n, uint32_t crc);
-void test_crc3(void);
+unsigned int isOK_test_crc3(void);
 
 #endif /* INC_CRC3BIT_H_ */

@@ -62,6 +62,18 @@
 				}
 			},
 
+#if def_DE_LONGO_VALUES
+			{	.idx = 11,
+				.label= "LM85_EM2",
+				.entry =
+				{
+					.threshold_rpm_X = 100,
+					.threshold_rpm_Y = 150,
+					.threshold_amplitude_X_um = 16000,
+					.threshold_amplitude_Y_um = 18000,
+				}
+			},
+#endif
 			{	.idx = 9,
 				.label= "LM100",
 				.entry =
