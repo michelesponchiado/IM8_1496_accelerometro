@@ -2030,7 +2030,7 @@ END GROUP
                 0x00008000                __top_MFlash32 = 0x8000
                 0x10002000                __top_RamLoc8 = 0x10002000
 
-.text           0x00000000     0x6378
+.text           0x00000000     0x6350
  FILL mask 0xff
                 0x00000000                __vectors_start__ = ABSOLUTE (.)
  *(.isr_vector)
@@ -2039,7 +2039,7 @@ END GROUP
                 0x00000124                . = ALIGN (0x4)
                 0x00000124                __section_table_start = .
                 0x00000124                __data_section_table = .
-                0x00000124        0x4 LONG 0x6378 LOADADDR (.data)
+                0x00000124        0x4 LONG 0x6350 LOADADDR (.data)
                 0x00000128        0x4 LONG 0x10000000 ADDR (.data)
                 0x0000012c        0x4 LONG 0x1c SIZEOF (.data)
                 0x00000130                __data_section_table_end = .
@@ -2582,55 +2582,54 @@ END GROUP
  .rodata.pinmuxing
                 0x00006068       0x74 ./src/main.o
  .rodata.str1.1
-                0x000060dc       0x61 ./src/table.o
-                                 0x62 (size before relaxing)
- *fill*         0x0000613d        0x3 
+                0x000060dc       0x58 ./src/table.o
+                                 0x59 (size before relaxing)
  .rodata.code_table
-                0x00006140      0x16c ./src/table.o
+                0x00006134      0x150 ./src/table.o
  .rodata.wdtOSCRate
-                0x000062ac       0x40 /home/michele/LPCXpresso/workspace/lpc_chip_13xx/Debug/liblpc_chip_13xx.a(clock_13xx.o)
+                0x00006284       0x40 /home/michele/LPCXpresso/workspace/lpc_chip_13xx/Debug/liblpc_chip_13xx.a(clock_13xx.o)
  .rodata.str1.1
-                0x000062ec       0x32 /usr/local/lpcxpresso_7.8.0_426/lpcxpresso/tools/bin/../lib/gcc/arm-none-eabi/4.9.3/../../../../arm-none-eabi/lib/armv7-m/libcr_c.a(fpprintf.o)
+                0x000062c4       0x32 /usr/local/lpcxpresso_7.8.0_426/lpcxpresso/tools/bin/../lib/gcc/arm-none-eabi/4.9.3/../../../../arm-none-eabi/lib/armv7-m/libcr_c.a(fpprintf.o)
                                  0x35 (size before relaxing)
  .rodata.str1.1
-                0x0000631e        0x4 /usr/local/lpcxpresso_7.8.0_426/lpcxpresso/tools/bin/../lib/gcc/arm-none-eabi/4.9.3/../../../../arm-none-eabi/lib/armv7-m/libcr_c.a(initio.o)
+                0x000062f6        0x4 /usr/local/lpcxpresso_7.8.0_426/lpcxpresso/tools/bin/../lib/gcc/arm-none-eabi/4.9.3/../../../../arm-none-eabi/lib/armv7-m/libcr_c.a(initio.o)
  .rodata.str1.1
-                0x00006322       0x2f /usr/local/lpcxpresso_7.8.0_426/lpcxpresso/tools/bin/../lib/gcc/arm-none-eabi/4.9.3/../../../../arm-none-eabi/lib/armv7-m/libcr_c.a(printf.o)
+                0x000062fa       0x2f /usr/local/lpcxpresso_7.8.0_426/lpcxpresso/tools/bin/../lib/gcc/arm-none-eabi/4.9.3/../../../../arm-none-eabi/lib/armv7-m/libcr_c.a(printf.o)
                                  0x38 (size before relaxing)
- *fill*         0x00006351        0x7 
+ *fill*         0x00006329        0x7 
  .rodata.__huge_vall
-                0x00006358        0x8 /usr/local/lpcxpresso_7.8.0_426/lpcxpresso/tools/bin/../lib/gcc/arm-none-eabi/4.9.3/../../../../arm-none-eabi/lib/armv7-m/libcr_c.a(_hugeval.o)
-                0x00006358                __huge_vall
+                0x00006330        0x8 /usr/local/lpcxpresso_7.8.0_426/lpcxpresso/tools/bin/../lib/gcc/arm-none-eabi/4.9.3/../../../../arm-none-eabi/lib/armv7-m/libcr_c.a(_hugeval.o)
+                0x00006330                __huge_vall
  .rodata.str1.1
-                0x00006360       0x18 /usr/local/lpcxpresso_7.8.0_426/lpcxpresso/tools/bin/../lib/gcc/arm-none-eabi/4.9.3/../../../../arm-none-eabi/lib/armv7-m/libcr_c.a(alloc.o)
-                0x00006378                . = ALIGN (0x4)
+                0x00006338       0x18 /usr/local/lpcxpresso_7.8.0_426/lpcxpresso/tools/bin/../lib/gcc/arm-none-eabi/4.9.3/../../../../arm-none-eabi/lib/armv7-m/libcr_c.a(alloc.o)
+                0x00006350                . = ALIGN (0x4)
 
-.glue_7         0x00006378        0x0
+.glue_7         0x00006350        0x0
  .glue_7        0x00000000        0x0 linker stubs
 
-.glue_7t        0x00006378        0x0
+.glue_7t        0x00006350        0x0
  .glue_7t       0x00000000        0x0 linker stubs
 
-.vfp11_veneer   0x00006378        0x0
+.vfp11_veneer   0x00006350        0x0
  .vfp11_veneer  0x00000000        0x0 linker stubs
 
-.v4_bx          0x00006378        0x0
+.v4_bx          0x00006350        0x0
  .v4_bx         0x00000000        0x0 linker stubs
 
-.iplt           0x00006378        0x0
+.iplt           0x00006350        0x0
  .iplt          0x00000000        0x0 ./src/accelerometer.o
 
-.rel.dyn        0x00006378        0x0
+.rel.dyn        0x00006350        0x0
  .rel.iplt      0x00000000        0x0 ./src/accelerometer.o
 
 .ARM.extab
  *(.ARM.extab* .gnu.linkonce.armextab.*)
-                0x00006378                __exidx_start = .
+                0x00006350                __exidx_start = .
 
 .ARM.exidx
  *(.ARM.exidx* .gnu.linkonce.armexidx.*)
-                0x00006378                __exidx_end = .
-                0x00006378                _etext = .
+                0x00006350                __exidx_end = .
+                0x00006350                _etext = .
 
 .uninit_RESERVED
                 0x10000000        0x0
@@ -2638,7 +2637,7 @@ END GROUP
                 0x10000000                . = ALIGN (0x4)
                 0x10000000                _end_uninit_RESERVED = .
 
-.data           0x10000000       0x1c load address 0x00006378
+.data           0x10000000       0x1c load address 0x00006350
  FILL mask 0xff
                 0x10000000                _data = .
  *(vtable)
@@ -2648,10 +2647,10 @@ END GROUP
                 0x1000001c                . = ALIGN (0x4)
                 0x1000001c                _edata = .
 
-.igot.plt       0x1000001c        0x0 load address 0x00006394
+.igot.plt       0x1000001c        0x0 load address 0x0000636c
  .igot.plt      0x00000000        0x0 ./src/accelerometer.o
 
-.bss            0x10000020     0x1b98 load address 0x00006394
+.bss            0x10000020     0x1b98 load address 0x0000636c
                 0x10000020                _bss = .
  *(.bss*)
  .bss.acc_io    0x10000020      0x8c8 ./src/accelerometer.o
@@ -2701,7 +2700,7 @@ END GROUP
                 0x10001bb8                _ebss = .
                 0x10001bb8                PROVIDE (end, .)
 
-.noinit         0x10001bb8        0x0 load address 0x00006394
+.noinit         0x10001bb8        0x0 load address 0x0000636c
                 0x10001bb8                _noinit = .
  *(.noinit*)
                 0x10001bb8                . = ALIGN (0x4)
@@ -2941,7 +2940,7 @@ OUTPUT(IM8_1496_accelerometro.axf elf32-littlearm)
  .debug_line    0x0000533a      0x515 /home/michele/LPCXpresso/workspace/lpc_chip_13xx/Debug/liblpc_chip_13xx.a(uart_13xx.o)
  .debug_line    0x0000584f      0x2fa /home/michele/LPCXpresso/workspace/lpc_chip_13xx/Debug/liblpc_chip_13xx.a(wwdt_13xx.o)
 
-.debug_str      0x00000000     0xfaf5
+.debug_str      0x00000000     0xfaff
  .debug_str     0x00000000     0xb621 ./src/accelerometer.o
                                0xb79c (size before relaxing)
  .debug_str     0x0000b621      0x55e ./src/alarms.o
@@ -2958,37 +2957,37 @@ OUTPUT(IM8_1496_accelerometro.axf elf32-littlearm)
                                0xbb94 (size before relaxing)
  .debug_str     0x0000cb4a       0x77 ./src/led.o
                                0xb3b8 (size before relaxing)
- .debug_str     0x0000cbc1     0x16ed ./src/main.o
-                               0xcfab (size before relaxing)
- .debug_str     0x0000e2ae       0x15 ./src/relais.o
+ .debug_str     0x0000cbc1     0x16f7 ./src/main.o
+                               0xcfb5 (size before relaxing)
+ .debug_str     0x0000e2b8       0x15 ./src/relais.o
                                0xb35c (size before relaxing)
- .debug_str     0x0000e2c3       0x21 ./src/sysinit.o
+ .debug_str     0x0000e2cd       0x21 ./src/sysinit.o
                                0xb2bd (size before relaxing)
- .debug_str     0x0000e2e4      0x125 ./src/system_tick.o
+ .debug_str     0x0000e2ee      0x125 ./src/system_tick.o
                                0xb974 (size before relaxing)
- .debug_str     0x0000e409       0x5e ./src/table.o
-                               0xb4c4 (size before relaxing)
- .debug_str     0x0000e467      0x20e ./src/uart.o
+ .debug_str     0x0000e413       0x5e ./src/table.o
+                               0xb4ce (size before relaxing)
+ .debug_str     0x0000e471      0x20e ./src/uart.o
                                0xb97f (size before relaxing)
- .debug_str     0x0000e675      0x223 /home/michele/LPCXpresso/workspace/lpc_chip_13xx/Debug/liblpc_chip_13xx.a(chip_13xx.o)
+ .debug_str     0x0000e67f      0x223 /home/michele/LPCXpresso/workspace/lpc_chip_13xx/Debug/liblpc_chip_13xx.a(chip_13xx.o)
                                0xb307 (size before relaxing)
- .debug_str     0x0000e898      0x480 /home/michele/LPCXpresso/workspace/lpc_chip_13xx/Debug/liblpc_chip_13xx.a(clock_13xx.o)
+ .debug_str     0x0000e8a2      0x480 /home/michele/LPCXpresso/workspace/lpc_chip_13xx/Debug/liblpc_chip_13xx.a(clock_13xx.o)
                                0xb7b9 (size before relaxing)
- .debug_str     0x0000ed18      0x24e /home/michele/LPCXpresso/workspace/lpc_chip_13xx/Debug/liblpc_chip_13xx.a(gpio_13xx_2.o)
+ .debug_str     0x0000ed22      0x24e /home/michele/LPCXpresso/workspace/lpc_chip_13xx/Debug/liblpc_chip_13xx.a(gpio_13xx_2.o)
                                0xb5ed (size before relaxing)
- .debug_str     0x0000ef66      0x36f /home/michele/LPCXpresso/workspace/lpc_chip_13xx/Debug/liblpc_chip_13xx.a(i2c_13xx.o)
+ .debug_str     0x0000ef70      0x36f /home/michele/LPCXpresso/workspace/lpc_chip_13xx/Debug/liblpc_chip_13xx.a(i2c_13xx.o)
                                0xb981 (size before relaxing)
- .debug_str     0x0000f2d5      0x212 /home/michele/LPCXpresso/workspace/lpc_chip_13xx/Debug/liblpc_chip_13xx.a(i2cm_13xx.o)
+ .debug_str     0x0000f2df      0x212 /home/michele/LPCXpresso/workspace/lpc_chip_13xx/Debug/liblpc_chip_13xx.a(i2cm_13xx.o)
                                0xb6a8 (size before relaxing)
- .debug_str     0x0000f4e7      0x128 /home/michele/LPCXpresso/workspace/lpc_chip_13xx/Debug/liblpc_chip_13xx.a(ring_buffer.o)
+ .debug_str     0x0000f4f1      0x128 /home/michele/LPCXpresso/workspace/lpc_chip_13xx/Debug/liblpc_chip_13xx.a(ring_buffer.o)
                                0x3fc1 (size before relaxing)
- .debug_str     0x0000f60f      0x19f /home/michele/LPCXpresso/workspace/lpc_chip_13xx/Debug/liblpc_chip_13xx.a(sysctl_13xx.o)
+ .debug_str     0x0000f619      0x19f /home/michele/LPCXpresso/workspace/lpc_chip_13xx/Debug/liblpc_chip_13xx.a(sysctl_13xx.o)
                                0xb359 (size before relaxing)
- .debug_str     0x0000f7ae      0x13d /home/michele/LPCXpresso/workspace/lpc_chip_13xx/Debug/liblpc_chip_13xx.a(sysinit_13xx.o)
+ .debug_str     0x0000f7b8      0x13d /home/michele/LPCXpresso/workspace/lpc_chip_13xx/Debug/liblpc_chip_13xx.a(sysinit_13xx.o)
                                0xb413 (size before relaxing)
- .debug_str     0x0000f8eb      0x1cc /home/michele/LPCXpresso/workspace/lpc_chip_13xx/Debug/liblpc_chip_13xx.a(uart_13xx.o)
+ .debug_str     0x0000f8f5      0x1cc /home/michele/LPCXpresso/workspace/lpc_chip_13xx/Debug/liblpc_chip_13xx.a(uart_13xx.o)
                                0xb6c3 (size before relaxing)
- .debug_str     0x0000fab7       0x3e /home/michele/LPCXpresso/workspace/lpc_chip_13xx/Debug/liblpc_chip_13xx.a(wwdt_13xx.o)
+ .debug_str     0x0000fac1       0x3e /home/michele/LPCXpresso/workspace/lpc_chip_13xx/Debug/liblpc_chip_13xx.a(wwdt_13xx.o)
                                0xb3f8 (size before relaxing)
 
 .comment        0x00000000       0xe0

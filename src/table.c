@@ -41,6 +41,28 @@
 					.threshold_amplitude_Y_um = 26000,
 				}
 			},
+#if def_NUOVE_MOLLE_LM_100_VALUES
+			{	.idx = 16,
+				.label= "LM85",
+				.entry =
+				{
+					.threshold_rpm_X = 100,
+					.threshold_rpm_Y = 150,
+					.threshold_amplitude_X_um = 15600,
+					.threshold_amplitude_Y_um = 10600,
+				}
+			},
+			{	.idx = 17,
+				.label= "LM85_EM",
+				.entry =
+				{
+					.threshold_rpm_X = 100,
+					.threshold_rpm_Y = 150,
+					.threshold_amplitude_X_um = 15600,
+					.threshold_amplitude_Y_um = 15600,
+				}
+			},
+#else
 			{	.idx = 16,
 				.label= "LM85",
 				.entry =
@@ -61,7 +83,7 @@
 					.threshold_amplitude_Y_um = 14600,
 				}
 			},
-
+#endif
 #if def_DE_LONGO_VALUES
 			{	.idx = 11,
 				.label= "LM85_EM2",

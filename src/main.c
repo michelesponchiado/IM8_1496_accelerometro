@@ -61,7 +61,10 @@
 //
 // 1.2 aggiunto modello LM85_EM2 abilitato da presenza di define "def_DE_LONGO_VALUES"
 //
-#define DEF_FIRMWARE_VERSION_STRING "IMESA 1496 accelerometer app: 1.2 "__DATE__" "__TIME__
+// 1.3 modificati valori LM85 e LM85_EM (indici 16 e 17), abilitata da define "def_NUOVE_MOLLE_LM_100_VALUES", come da email di richiesta da Silvano Guiotto in data 11 Dec 2017
+//     modello LM85_EM2 disabilitato, eliminata define "def_DE_LONGO_VALUES"
+//
+#define DEF_FIRMWARE_VERSION_STRING "IMESA 1496 accelerometer app: 1.3 "__DATE__" "__TIME__
 
 //using internal oscillator
 const uint32_t OscRateIn = 0;
