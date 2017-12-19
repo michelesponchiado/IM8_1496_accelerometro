@@ -64,7 +64,9 @@
 // 1.3 modificati valori LM85 e LM85_EM (indici 16 e 17), abilitata da define "def_NUOVE_MOLLE_LM_100_VALUES", come da email di richiesta da Silvano Guiotto in data 11 Dec 2017
 //     modello LM85_EM2 disabilitato, eliminata define "def_DE_LONGO_VALUES"
 //
-#define DEF_FIRMWARE_VERSION_STRING "IMESA 1496 accelerometer app: 1.3 "__DATE__" "__TIME__
+// 0.4 ricompilata in modo eeprom+seriale senza watchdog
+//
+#define DEF_FIRMWARE_VERSION_STRING "IMESA 1496 accelerometer app: 0.4 "__DATE__" "__TIME__
 
 //using internal oscillator
 const uint32_t OscRateIn = 0;
@@ -663,7 +665,7 @@ void print_info(void)
 #endif
 
 #ifndef __PRODUCTION_NO_EEPROM_NO_SERIAL__
-#error compiling to eeprom+serial board!
+//#error compiling to eeprom+serial board!
 	check_rx_chars();
 #endif
 
@@ -1343,11 +1345,13 @@ int main(void)
 						init_new_alarm(enum_alarm_SW);
 						main_info.from_watchdog_reset = 1;
 					}
+#if def_watchdog_enabled
 					Chip_Clock_SetWDTClockSource(SYSCTL_WDTCLKSRC_IRC, 64);
 					Chip_WWDT_Init(LPC_WWDT);
 					Chip_WWDT_SetTimeOut(LPC_WWDT, 30000 * 2);
 					Chip_WWDT_SetOption(LPC_WWDT, WWDT_WDMOD_WDEN | WWDT_WDMOD_WDRESET);
 					Chip_WWDT_Feed(LPC_WWDT);
+#endif
 					break;
 				}
 				case enum_run_status_run:

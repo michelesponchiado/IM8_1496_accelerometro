@@ -29,7 +29,7 @@ unsigned int is_OK_write_EEPROM_24LC512_byte(unsigned int byte_address, unsigned
 	unsigned int ui_transferred_bytes=0;
 	ui_transferred_bytes = Chip_I2C_MasterSend(I2C0, xfer.slaveAddr, xfer.txBuff, xfer.txSz);
 	// after a write, at least 30ms are needed before the EEPROm can reply
-	delay_ms(30);
+	delay_ms(50);
 
 	if (ui_transferred_bytes!=xfer.txSz)
 	{
@@ -56,7 +56,7 @@ unsigned int is_OK_write_EEPROM_24LC512_array(unsigned int byte_address, unsigne
 	unsigned int ui_transferred_bytes=0;
 	ui_transferred_bytes = Chip_I2C_MasterSend(I2C0, xfer.slaveAddr, xfer.txBuff, xfer.txSz);
 	// after a write, at least 30ms are needed before the EEPROm can reply
-	delay_ms(30);
+	delay_ms(50);
 	if (ui_transferred_bytes!=xfer.txSz)
 	{
 		return 0;
