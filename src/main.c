@@ -65,8 +65,9 @@
 //     modello LM85_EM2 disabilitato, eliminata define "def_DE_LONGO_VALUES"
 //
 // 0.4 ricompilata in modo eeprom+seriale senza watchdog
+// 1.4 ricompilata in modo PRODUCTION_NO_EEPROM
 //
-#define DEF_FIRMWARE_VERSION_STRING "IMESA 1496 accelerometer app: 0.4 "__DATE__" "__TIME__
+#define DEF_FIRMWARE_VERSION_STRING "IMESA 1496 accelerometer app: 1.4 "__DATE__" "__TIME__
 
 //using internal oscillator
 const uint32_t OscRateIn = 0;
