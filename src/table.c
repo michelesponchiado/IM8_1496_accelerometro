@@ -10,7 +10,7 @@
 #include <string.h>
 #include "eeprom.h"
 #include "table.h"
-#if 1 || def_table_in_code
+#if def_table_in_code
 
 	typedef struct _type_code_table
 	{
@@ -218,7 +218,7 @@
 		return 0;
 	}
 #else
-#error compiling to eeprom+serial board!
+//#error compiling to eeprom+serial board!
 
 	static uint32_t crc32_tab[] = {
 		0x00000000, 0x77073096, 0xee0e612c, 0x990951ba, 0x076dc419, 0x706af48f,
