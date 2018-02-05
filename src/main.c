@@ -66,8 +66,14 @@
 //
 // 0.4 ricompilata in modo eeprom+seriale senza watchdog
 // 1.4 ricompilata in modo PRODUCTION_NO_EEPROM
+// 1.5 aggiunte entries come da specifica Silvano Guiotto
+//     	"LM30_MV", 100, 150, 10000, 18500
+//		"LM30_MN", 100, 150, 10200, 19000
+//		"LM70",     90, 150, 19600, 17500,
+//		"LM70_EM",  90, 150, 19600, 19000
 //
-#define DEF_FIRMWARE_VERSION_STRING "IMESA 1496 accelerometer app: 1.4 "__DATE__" "__TIME__
+//
+#define DEF_FIRMWARE_VERSION_STRING "IMESA 1496 accelerometer app: 1.5 "__DATE__" "__TIME__
 
 //using internal oscillator
 const uint32_t OscRateIn = 0;

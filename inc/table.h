@@ -30,7 +30,7 @@ unsigned int is_OK_write_rom_table_entry(uint8_t idx, type_rom_table_entry *p_sr
 	#warning def_DE_LONGO_VALUES active!
 #endif
 
-#define def_NUOVE_MOLLE_LM_100_VALUES 1
+//#define def_NUOVE_MOLLE_LM_100_VALUES 1
 
 #if def_NUOVE_MOLLE_LM_100_VALUES
 	#warning def_NUOVE_MOLLE_LM_100_VALUES active!

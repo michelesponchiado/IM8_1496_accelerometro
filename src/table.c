@@ -1,16 +1,19 @@
 /*
  * table.c
+
  *
  *  Created on: Apr 10, 2017
  *      Author: michele
  */
+#if ! def_local_main
 #include "board.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "eeprom.h"
+#endif
 #include "table.h"
-#if def_table_in_code
+#if def_table_in_code || def_local_main
 
 	typedef struct _type_code_table
 	{
@@ -20,6 +23,28 @@
 	}type_code_table;
 	static const type_code_table code_table[] =
 	{
+			{	.idx = 1,
+				.label= "LM30_MV",
+				.entry =
+				{
+					.threshold_rpm_X = 100,
+					.threshold_rpm_Y = 150,
+					.threshold_amplitude_X_um = 10000,
+					.threshold_amplitude_Y_um = 18500,
+				}
+			},
+
+			{	.idx = 3,
+				.label= "LM30_MN",
+				.entry =
+				{
+					.threshold_rpm_X = 100,
+					.threshold_rpm_Y = 150,
+					.threshold_amplitude_X_um = 10200,
+					.threshold_amplitude_Y_um = 19000,
+				}
+			},
+
 			{	.idx = 4,
 				.label= "LM55",
 				.entry =
@@ -63,6 +88,26 @@
 				}
 			},
 #else
+			{	.idx = 8,
+				.label= "LM70",
+				.entry =
+				{
+					.threshold_rpm_X = 90,
+					.threshold_rpm_Y = 150,
+					.threshold_amplitude_X_um = 19600,
+					.threshold_amplitude_Y_um = 17500,
+				}
+			},
+			{	.idx = 24,
+				.label= "LM70_EM",
+				.entry =
+				{
+					.threshold_rpm_X = 90,
+					.threshold_rpm_Y = 150,
+					.threshold_amplitude_X_um = 19600,
+					.threshold_amplitude_Y_um = 19000,
+				}
+			},
 			{	.idx = 16,
 				.label= "LM85",
 				.entry =
@@ -162,6 +207,16 @@
 				}
 			},
 
+			{	.idx = 21,
+				.label= "D2W30",
+				.entry =
+				{
+					.threshold_rpm_X = 150,
+					.threshold_rpm_Y = 150,
+					.threshold_amplitude_X_um = 8500,
+					.threshold_amplitude_Y_um = 15500,
+				}
+			},
 			{	.idx = 20,
 				.label= "D2W55",
 				.entry =
@@ -173,16 +228,6 @@
 				}
 			},
 
-			{	.idx = 21,
-				.label= "D2W30",
-				.entry =
-				{
-					.threshold_rpm_X = 150,
-					.threshold_rpm_Y = 150,
-					.threshold_amplitude_X_um = 8500,
-					.threshold_amplitude_Y_um = 15500,
-				}
-			},
 	};
 
 	static const type_code_table * p_last_found = NULL;
@@ -366,4 +411,41 @@
 			while(1);
 		}
 	}
+#endif
+
+#if def_local_main
+void print_the_table(void)
+{
+#include <stdio.h>
+#include <stdlib.h>
+	printf ("Start of %s\r\n", __func__);
+	FILE *f = fopen("IM8_1496_table.txt", "wb");
+	if (!f)
+	{
+		printf("error opening the output file\r\n");
+		return;
+	}
+	unsigned int i;
+	for (i = 0; i < sizeof(code_table)/sizeof(code_table[0]); i++)
+	{
+		const type_code_table * p = &code_table[i];
+		if (fprintf(f, "%-10.10s %2u, rpmX=%5u, rpmY=%5u, thrX=%5u, thrY=%5u\r\n"
+					, p->label
+					, p->idx
+					, p->entry.threshold_rpm_X
+					, p->entry.threshold_rpm_Y
+					, p->entry.threshold_amplitude_X_um
+					, p->entry.threshold_amplitude_Y_um
+				) < 0)
+			{
+			printf("error doing fprintf\r\n");
+			break;
+			}
+	}
+	if (fclose(f) < 0)
+	{
+		printf ("error doing fclose\r\n");
+	}
+	printf ("End of %s\r\n", __func__);
+}
 #endif
