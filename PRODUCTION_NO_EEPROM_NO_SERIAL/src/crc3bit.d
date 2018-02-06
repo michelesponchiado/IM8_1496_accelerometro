@@ -24,7 +24,8 @@ src/crc3bit.o src/crc3bit.d: ../src/crc3bit.c \
  /home/michele/LPCXpresso/workspace/lpc_chip_13xx/inc/flash_13xx.h \
  /home/michele/LPCXpresso/workspace/lpc_chip_13xx/inc/gpio_13xx_2.h \
  /home/michele/LPCXpresso/workspace/IM8_1496_accelerometro/inc/board_api.h \
- /home/michele/LPCXpresso/workspace/lpc_chip_13xx/inc/lpc_types.h
+ /home/michele/LPCXpresso/workspace/lpc_chip_13xx/inc/lpc_types.h \
+ /home/michele/LPCXpresso/workspace/IM8_1496_accelerometro/inc/crc3bit.h
 
 /home/michele/LPCXpresso/workspace/IM8_1496_accelerometro/inc/board.h:
 
@@ -77,3 +78,5 @@ src/crc3bit.o src/crc3bit.d: ../src/crc3bit.c \
 /home/michele/LPCXpresso/workspace/IM8_1496_accelerometro/inc/board_api.h:
 
 /home/michele/LPCXpresso/workspace/lpc_chip_13xx/inc/lpc_types.h:
+
+/home/michele/LPCXpresso/workspace/IM8_1496_accelerometro/inc/crc3bit.h:

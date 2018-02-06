@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "eeprom.h"
+#include "crc3bit.h"
 #endif
 #include "table.h"
 #if def_table_in_code || def_local_main
@@ -21,6 +22,209 @@
 		const char *label;
 		type_rom_table_entry entry;
 	}type_code_table;
+#if def_64_dipswitch_codes || def_use2bits_for_crc
+	static const type_code_table code_table[] =
+	{
+			{	.idx = 1,
+				.label= "LM30_MV",
+				.entry =
+				{
+					.threshold_rpm_X = 100,
+					.threshold_rpm_Y = 150,
+					.threshold_amplitude_X_um = 10000,
+					.threshold_amplitude_Y_um = 18500,
+				}
+			},
+
+			{	.idx = 3,
+				.label= "LM30_MN",
+				.entry =
+				{
+					.threshold_rpm_X = 100,
+					.threshold_rpm_Y = 150,
+					.threshold_amplitude_X_um = 10200,
+					.threshold_amplitude_Y_um = 19000,
+				}
+			},
+
+			{	.idx = 9,
+				.label= "LM55_MV",
+				.entry =
+				{
+					.threshold_rpm_X = 100,
+					.threshold_rpm_Y = 150,
+					.threshold_amplitude_X_um = 9800,
+					.threshold_amplitude_Y_um = 16300,
+				}
+			},
+
+			{	.idx = 10,
+				.label= "LM55_MV",
+				.entry =
+				{
+					.threshold_rpm_X = 100,
+					.threshold_rpm_Y = 150,
+					.threshold_amplitude_X_um = 9800,
+					.threshold_amplitude_Y_um = 26000,
+				}
+			},
+
+			{	.idx = 13,
+				.label= "LM70_MV",
+				.entry =
+				{
+					.threshold_rpm_X =  90,
+					.threshold_rpm_Y = 150,
+					.threshold_amplitude_X_um = 19600,
+					.threshold_amplitude_Y_um = 17500,
+				}
+			},
+
+			{	.idx = 14,
+				.label= "LM70_MV_EM",
+				.entry =
+				{
+					.threshold_rpm_X =  90,
+					.threshold_rpm_Y = 150,
+					.threshold_amplitude_X_um = 19600,
+					.threshold_amplitude_Y_um = 19000,
+				}
+			},
+
+			{	.idx = 17,
+				.label= "LM85_MV",
+				.entry =
+				{
+					.threshold_rpm_X = 100,
+					.threshold_rpm_Y = 150,
+					.threshold_amplitude_X_um = 14000,
+					.threshold_amplitude_Y_um = 10000,
+				}
+			},
+
+			{	.idx = 18,
+				.label= "LM85_EM_MV",
+				.entry =
+				{
+					.threshold_rpm_X = 100,
+					.threshold_rpm_Y = 150,
+					.threshold_amplitude_X_um = 14000,
+					.threshold_amplitude_Y_um = 14600,
+				}
+			},
+
+			{	.idx = 19,
+				.label= "LM85_MN",
+				.entry =
+				{
+					.threshold_rpm_X = 100,
+					.threshold_rpm_Y = 150,
+					.threshold_amplitude_X_um = 16000,
+					.threshold_amplitude_Y_um = 11000,
+				}
+			},
+
+			{	.idx = 20,
+				.label= "LM85_EM_MN",
+				.entry =
+				{
+					.threshold_rpm_X = 100,
+					.threshold_rpm_Y = 150,
+					.threshold_amplitude_X_um = 16000,
+					.threshold_amplitude_Y_um = 15600,
+				}
+			},
+
+			{	.idx = 21,
+				.label= "LM100",
+				.entry =
+				{
+					.threshold_rpm_X = 100,
+					.threshold_rpm_Y = 100,
+					.threshold_amplitude_X_um = 11500,
+					.threshold_amplitude_Y_um = 33500,
+				}
+			},
+
+			{	.idx = 22,
+				.label= "LM100_EM",
+				.entry =
+				{
+					.threshold_rpm_X = 100,
+					.threshold_rpm_Y = 100,
+					.threshold_amplitude_X_um = 11500,
+					.threshold_amplitude_Y_um = 35500,
+				}
+			},
+
+			{	.idx = 23,
+				.label= "LM100_EM2",
+				.entry =
+				{
+					.threshold_rpm_X = 100,
+					.threshold_rpm_Y = 100,
+					.threshold_amplitude_X_um = 12500,
+					.threshold_amplitude_Y_um = 36500,
+				}
+			},
+
+			{	.idx = 24,
+				.label= "LM125",
+				.entry =
+				{
+					.threshold_rpm_X = 100,
+					.threshold_rpm_Y = 100,
+					.threshold_amplitude_X_um = 11000,
+					.threshold_amplitude_Y_um = 32500,
+				}
+			},
+
+			{	.idx = 25,
+				.label= "LM125_EM",
+				.entry =
+				{
+					.threshold_rpm_X = 100,
+					.threshold_rpm_Y = 100,
+					.threshold_amplitude_X_um = 11000,
+					.threshold_amplitude_Y_um = 36000,
+				}
+			},
+
+			{	.idx = 26,
+				.label= "LM125_EM2",
+				.entry =
+				{
+					.threshold_rpm_X = 100,
+					.threshold_rpm_Y = 100,
+					.threshold_amplitude_X_um = 12500,
+					.threshold_amplitude_Y_um = 39000,
+				}
+			},
+
+			{	.idx = 27,
+				.label= "D2W30_MV",
+				.entry =
+				{
+					.threshold_rpm_X = 150,
+					.threshold_rpm_Y = 150,
+					.threshold_amplitude_X_um =  8500,
+					.threshold_amplitude_Y_um = 15500,
+				}
+			},
+
+			{	.idx = 31,
+				.label= "D2W55_MV",
+				.entry =
+				{
+					.threshold_rpm_X = 100,
+					.threshold_rpm_Y = 150,
+					.threshold_amplitude_X_um =  9400,
+					.threshold_amplitude_Y_um = 20000,
+				}
+			},
+	};
+
+#else
 	static const type_code_table code_table[] =
 	{
 			{	.idx = 1,
@@ -229,6 +433,7 @@
 			},
 
 	};
+#endif
 
 	static const type_code_table * p_last_found = NULL;
 	const char *p_get_rom_table_last_found_label(void)

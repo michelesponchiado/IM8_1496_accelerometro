@@ -71,9 +71,10 @@
 //		"LM30_MN", 100, 150, 10200, 19000
 //		"LM70",     90, 150, 19600, 17500,
 //		"LM70_EM",  90, 150, 19600, 19000
+// 2.0 passati a 6 bit di codice + 2 bit CRC come da richiesta Silvano Guiotto approvata
 //
 //
-#define DEF_FIRMWARE_VERSION_STRING "IMESA 1496 accelerometer app: 1.5 "__DATE__" "__TIME__
+#define DEF_FIRMWARE_VERSION_STRING "IMESA 1496 accelerometer app: 2.0 "__DATE__" "__TIME__
 
 //using internal oscillator
 const uint32_t OscRateIn = 0;
@@ -165,12 +166,21 @@ typedef enum
 #define def_num_shift_length_hist_amp 8
 #define def_length_hist_amp (1 << def_num_shift_length_hist_amp)
 
-#define numbit_dipsw1_crc 3
-#define mask_dipsw1_crc (0xE0)
-#define num_shiftright_dipsw1_crc 5
+#if def_use2bits_for_crc
+	#define numbit_dipsw1_crc 2
+	#define mask_dipsw1_crc (0xC0)
+	#define num_shiftright_dipsw1_crc 6
 
-#define mask_dipsw1_value (0x1f)
-#define num_shiftright_dipsw1_value 0
+	#define mask_dipsw1_value (0x3f)
+	#define num_shiftright_dipsw1_value 0
+#else
+	#define numbit_dipsw1_crc 3
+	#define mask_dipsw1_crc (0xE0)
+	#define num_shiftright_dipsw1_crc 5
+
+	#define mask_dipsw1_value (0x1f)
+	#define num_shiftright_dipsw1_value 0
+#endif
 
 typedef struct _type_struct_control
 {
@@ -859,6 +869,15 @@ void print_info(void)
 					else
 					{
 						uint32_t ok_crc = calc_crc_3bit_of_6bit_number( main_info.control.table_entry_index_value);
+#if def_use2bits_for_crc
+						n_chars = snprintf(handle_print_menu.line, sizeof(handle_print_menu.line), "ERROR: INDEX %u SELECTED, DIP 78: %c%c (WRONG! MUST BE %c%c)"
+								,  main_info.control.table_entry_index_value
+								, (main_info.control.table_entry_index_crc & 1) ? '1' : '0'
+								, (main_info.control.table_entry_index_crc & 2) ? '1' : '0'
+								, (ok_crc & 1) ? '1' : '0'
+								, (ok_crc & 2) ? '1' : '0'
+						);
+#else
 						n_chars = snprintf(handle_print_menu.line, sizeof(handle_print_menu.line), "ERROR: INDEX %u SELECTED, DIP 678: %c%c%c (WRONG! MUST BE %c%c%c)"
 								, main_info.control.table_entry_index_value
 								, (main_info.control.table_entry_index_crc & 1) ? '1' : '0'
@@ -868,6 +887,7 @@ void print_info(void)
 								, (ok_crc & 2) ? '1' : '0'
 								, (ok_crc & 4) ? '1' : '0'
 						);
+#endif
 					}
 				}
 				else
